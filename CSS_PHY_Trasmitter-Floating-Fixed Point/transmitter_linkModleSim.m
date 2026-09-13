@@ -1,11 +1,12 @@
 % ----------------------------------------------------------------------- %
 % ----------------------------------------------------------------------- %
 global css_tx_real;
-global css_tx_imag;
+global css_tx_imag; %#ok<*GVMIS>
 css_tx_real = zeros(1,TxChirpSequencesLength);
 css_tx_imag = zeros(1,TxChirpSequencesLength);
 % ----------------------------------------------------------------------- %
 % ----------------------------------------------------------------------- %
+%!
 cd ./../../VHDL 
 hdldaemon('kill');
 hdldaemon('socket',1225);

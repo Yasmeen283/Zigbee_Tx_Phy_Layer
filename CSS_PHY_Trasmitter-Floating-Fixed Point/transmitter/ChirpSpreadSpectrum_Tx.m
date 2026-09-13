@@ -11,7 +11,7 @@ function TxchirpSequences =   ...
 % ======================================================================= %
 % Get the global variables
 % ----------------------------------------------------------------------- %
-global SFD_Std ;
+global SFD_Std ; %#ok<*GVMIS>
 global SFDlength ;
 global PHRlength ;
 global preambleLengthStd ;

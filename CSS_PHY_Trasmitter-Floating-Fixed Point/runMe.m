@@ -1,8 +1,8 @@
 %-------------------------------------------------------------------------%
 %-------------------------------------------------------------------------%
 clc
-clear all
-rand('state',0);
+clear all %#ok<*CLALL>
+rand('state',0); %#ok<*RAND>
 randn('state',0);
 %-------------------------------------------------------------------------%
 %-------------------------------------------------------------------------%
@@ -18,7 +18,7 @@ addpath 'transmitter'
 %-------------------------------------------------------------------------%
 % dataRateArray = [ 0 1 ];  % 0 for  1 Mb/s  , 1  for 250 kb/s
 % Set the global Variables for both Transmitter and Receiver 
-global chirpIndex ;     % chirp Sequence Index= 1, 2, 3 or 4
+global chirpIndex ;     %#ok<*GVMIS> % chirp Sequence Index= 1, 2, 3 or 4
 global samplingFreqMhz; % Sampling Frequency in MHz
 global carrierFreqGHz;  % Carrier frequency in GHz
 global codeWordLengthStd;
