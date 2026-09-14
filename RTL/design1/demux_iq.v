@@ -17,16 +17,16 @@
 `timescale 1ns/1ps
 
 module demux_iq (
-    input  wire        bit_in,     // padded-stream bit value at bit_index (from zero_padding)
-    input  wire [15:0] bit_index,  // 0-based position within the padded stream
-    output wire        i_bit,      // = bit_in, present only when i_valid
-    output wire        q_bit,      // = bit_in, present only when q_valid
-    output wire        i_valid,    // 1 when bit_index is even (this bit belongs to I path)
-    output wire        q_valid     // 1 when bit_index is odd  (this bit belongs to Q path)
+    input  wire bit_in,           // padded-stream bit value at bit_index (from zero_padding)
+    input  wire sel,             //bit index [0]
+    output wire i_bit,          // = bit_in, present only when i_valid
+    output wire q_bit,         // = bit_in, present only when q_valid
+    output wire i_valid,      // 1 when bit_index is even (this bit belongs to I path)
+    output wire q_valid      // 1 when bit_index is odd  (this bit belongs to Q path)
 );
 
-    assign i_valid = ~bit_index[0];
-    assign q_valid =  bit_index[0];
+    assign i_valid = ~sel;
+    assign q_valid =  sel;
 
     assign i_bit = bit_in;
     assign q_bit = bit_in;

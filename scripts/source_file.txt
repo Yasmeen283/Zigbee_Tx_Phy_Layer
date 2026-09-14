@@ -1,3 +1,8 @@
 ../RTL/design1/zero_padding.v
+../RTL/design1/symbol_mapper.v
+../RTL/design1/serial_to_parallel.v
+../RTL/design1/demux_iq.v
+../RTL/design1/css_tx_frontend.v
 ../RTL/design1/TB/tb_zero_padding.v
+../RTL/design1/TB/tb_css_tx_frontend.v
 

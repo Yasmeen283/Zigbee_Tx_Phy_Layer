@@ -91,97 +91,101 @@ module css_tx_top #(
     // combinational function raw_bit()/padded_bit(), since symbol_mapper
     // needs 6 padded-stream bits available in the same cycle).
     // ---------------------------------------------------------------------
-    wire  [7:0]  payload_length_reg;
-    
+    wire  [6:0]  payload_length_reg;
+    wire load_zero_padding ;
+    wire enable_zero_padding ;
 
-
-    // wire [4:0]  pad_bits;
+    wire [4:0]  pad_bits;
     wire [15:0] padded_total_bits;
+    wire [15:0] bit_index ;
+    wire bit_out_zero_padding ;
+    wire frame_done ;
 
-    zero_padding #( .GROUP_SIZE(6) ) u_zero_padding (
-        .total_bits         (total_bits),
-        // .pad_bits           (pad_bits),
-        .padded_total_bits  (padded_total_bits),
-        .bit_index          (16'd0),
-        .payload_bit_in     (1'b0),
-        .bit_out            ()
+    zero_padding #(.GROUP_SIZE(GROUP_SIZE),
+        .DATA_WIDTH(DATA_WIDTH),
+        .ADDR_WIDTH(ADDR_WIDTH) ) u_zero_padding (
+        .clk(clk),
+        .reset(reset),
+        .load(load_zero_padding),
+        .enable(enable_zero_padding),
+        .payload_length_reg(payload_length_reg),
+        .pad_bits(pad_bits),
+        .padded_total_bits(padded_total_bits),
+        .payload_rd_data(payload_rd_data),
+        .payload_rd_addr(payload_rd_addr),
+        .bit_index(bit_index),
+        .bit_out(bit_out),
+        .frame_done(frame_done)
     );
 
-    wire [15:0] n_codewords_per_path = padded_total_bits / 16'd6;  // exact: padded_total_bits is a mult of 6
-    wire [15:0] n_groups             = 16'd12 + n_codewords_per_path; // 12 preamble/SFD groups + payload groups
 
     // ---------------------------------------------------------------------
-    // raw_bit(idx): the true (pre-padding) PHR+PSDU bit at position idx
-    //   idx 0..6   -> PayloadLength[6:0], MSB first (Table 6/11: bits 0-6)
-    //   idx 7..11  -> 0 (not-used + reserved)
-    //   idx >=12   -> PSDU bit (idx-12), MSB-first within each byte
-    // padded_bit(idx): raw_bit(idx) if idx<total_bits, else 0 (zero_padding.v
-    // bit-gate, replicated here for combinational multi-bit access)
-    // ---------------------------------------------------------------------
-    function raw_bit;
-        input [15:0] idx;
-        reg   [15:0] psdu_idx;
-        reg   [6:0]  byte_idx;
-        reg   [2:0]  bit_in_byte;
-        begin
-            if (idx < 7)
-                raw_bit = payload_length_reg[6 - idx[2:0]];
-            else if (idx < 12)
-                raw_bit = 1'b0;
-            else begin
-                psdu_idx    = idx - 16'd12;
-                byte_idx    = psdu_idx[9:3];
-                bit_in_byte = 3'd7 - psdu_idx[2:0];
-                raw_bit     = payload_mem[byte_idx][bit_in_byte];
-            end
-        end
-    endfunction
-
-    function padded_bit;
-        input [15:0] idx;
-        begin
-            padded_bit = (idx < total_bits) ? raw_bit(idx) : 1'b0;
-        end
-    endfunction
+    // IQ Demux
+    //---------------------------------------------------------------------
+    wire i_bit , q_bit ;
+    wire i_valid , q_valid ;
+    demux_iq u_demux_iq (
+        .bit_in(bit_out_zero_padding),
+        .sel(bit_index[0]),
+        .i_bit(i_bit),
+        .q_bit(q_bit),
+        .i_valid(i_valid),
+        .q_valid(q_valid)
+    );
 
     // ---------------------------------------------------------------------
-    // FSM
+    // serial to parallel   
+    //---------------------------------------------------------------------
+        parameter N = 3 ; //3 ror 1M , 6 for 250k
+        wire [N-1:0] i_symbol , q_symbol ;
+        wire i_symbol_valid , q_symbol_valid ;
+
+        // Instantiate I-Path Serial to Parallel (N = 3 or 6)
+        serial_to_parallel #(.N(N)) s2p_i (
+            .clk       (clk),
+            .reset     (reset),
+            .start     (load_zero_padding),
+            .valid_in  (enable_zero_padding && i_valid),
+            .bit_in    (i_bit),
+            .data_out  (i_symbol),
+            .valid_out (i_symbol_valid)
+        );
+
+        // Instantiate Q-Path Serial to Parallel (N = 3 or 6)
+        serial_to_parallel #(.N(N)) s2p_q (
+            .clk       (clk),
+            .reset     (reset),
+            .start     (load_zero_padding),
+            .valid_in  (enable_zero_padding && q_valid),
+            .bit_in    (q_bit),
+            .data_out  (q_symbol),
+            .valid_out (q_symbol_valid)
+        );
+   
     // ---------------------------------------------------------------------
-    localparam S_IDLE     = 3'd0,
-               S_GEN      = 3'd1,  // generate/DQPSK-encode the 4 symbols of one group
-               S_SUBCHIRP = 3'd2,  // stream the 152 modulated chirp samples
-               S_GAP      = 3'd3,  // stream the (TEVEN/TODD) idle gap samples
-               S_NEXTGRP  = 3'd4,
-               S_DONE     = 3'd5;
+    // symbol mapper   
+    //---------------------------------------------------------------------
+    parameter M = 4 ; //4 for 1M ,32 for 250k
+    wire i_codeword_valid , q_codeword_valid ;
+    wire [M-1:0] i_codeword , q_codeword ;
 
-    reg [2:0]  state;
-    reg [15:0] group_idx;
-    reg [2:0]  phase;      // 0..4 within S_GEN
-    reg [7:0]  chirp_addr; // 0..151 within S_SUBCHIRP
-    reg [7:0]  gap_cnt;
+    symbol_mapper #( .N_IN(N), .M_OUT(M), .MEMFILE(SYMROM_1MBPS) )
+        u_symmap_I (.clk(clk), 
+                    .group_in(i_symbol) , 
+                    .group_valid(i_symbol_valid), 
+                    .codeword_out(i_codeword) 
+                    .codeword_valid(i_codeword_valid));
 
-    // ---- symbol source selection for the current (group_idx, phase) -------
-    wire        in_preamble = (group_idx < 16'd12);
-    wire [7:0]  preamble_addr = group_idx[5:0]*4 + phase[1:0];
-    wire        pre_bit;
+    symbol_mapper #( .N_IN(N), .M_OUT(M), .MEMFILE(SYMROM_1MBPS) )
+        u_symmap_Q (.clk(clk), 
+                    .group_in(q_symbol) , 
+                    .group_valid(q_symbol_valid), 
+                    .codeword_out(q_codeword) 
+                    .codeword_valid(q_codeword_valid));
+  
 
     preamble_sfd_rom #( .TOTAL_BITS(48), .MEMFILE(PREAMBLE_MEMFILE) )
         u_preamble_sfd ( .addr(preamble_addr), .bit_out(pre_bit) );
-
-    wire [15:0] cw_idx = group_idx - 16'd12; // valid only when !in_preamble
-
-    wire       g0 = padded_bit(6*cw_idx),   g1 = padded_bit(6*cw_idx+1),
-               g2 = padded_bit(6*cw_idx+2), g3 = padded_bit(6*cw_idx+3),
-               g4 = padded_bit(6*cw_idx+4), g5 = padded_bit(6*cw_idx+5);
-    wire [2:0] group_in_I = {g0, g2, g4};   // I-path bits of this codeword (Block 2 -- even positions)
-    wire [2:0] group_in_Q = {g1, g3, g5};   // Q-path bits of this codeword (odd positions)
-
-    wire [3:0] codeword_I, codeword_Q;
-    symbol_mapper #( .N_IN(3), .M_OUT(4), .MEMFILE(SYMROM_1MBPS) )
-        u_symmap_I ( .group_in(group_in_I), .codeword_out(codeword_I) );
-    symbol_mapper #( .N_IN(3), .M_OUT(4), .MEMFILE(SYMROM_1MBPS) )
-        u_symmap_Q ( .group_in(group_in_Q), .codeword_out(codeword_Q) );
-
     wire i_bit = in_preamble ? pre_bit : codeword_I[3 - phase[1:0]];
     wire q_bit = in_preamble ? pre_bit : codeword_Q[3 - phase[1:0]];
 

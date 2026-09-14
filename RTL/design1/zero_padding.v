@@ -138,6 +138,13 @@ module zero_padding #(
     // Serial bit gate (combinational): substitute 0 once bit_index has
     // walked past the real PHR/PSDU bits and into the padding region.
     // ------------------------------------------------------------------
-    assign bit_out = (bit_index < total_bits) ? payload_bit_in : 1'b0;
+    reg  [15:0] bit_index_d ;
+    always @(posedge clk) begin
+        if (reset)
+            bit_index_d <= 16'd0;
+        else
+            bit_index_d <= bit_index;
+    end
 
+    assign bit_out = (bit_index_d < total_bits) ? payload_bit_in : 1'b0;
 endmodule

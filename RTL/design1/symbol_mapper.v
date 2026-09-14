@@ -24,10 +24,13 @@ module symbol_mapper #(
     parameter N_IN        = 3,             // input group width  (3 or 6)
     parameter M_OUT       = 4,             // output codeword width (4 or 32)
     parameter NUM_WORDS   = (1 << N_IN),   // 8 or 64
-    parameter MEMFILE     = "vectors/symbol_mapper_1mbps.mem"
+    parameter MEMFILE     = "../RTL/design1/vectors/symbol_mapper_1mbps.mem"
 ) (
+    input                        clk ,
     input  wire [N_IN-1:0]       group_in,  // n-bit input group (binary index)
-    output wire [M_OUT-1:0]      codeword_out
+    input  wire                  group_valid , //input from serilizer                   
+    output reg  [M_OUT-1:0]      codeword_out ,
+    output reg                   codeword_valid // output to interleaver
 );
 
     // Combinational (asynchronous) ROM read. At 8x4 or 64x32 this table is
@@ -40,6 +43,15 @@ module symbol_mapper #(
         $readmemb(MEMFILE, rom);
     end
 
-    assign codeword_out = rom[group_in];
+    always @(posedge clk) begin
+        if(group_valid) begin
+            codeword_out <= rom[group_in];
+            codeword_valid <= 1'b1 ;
+        end
+        else begin
+            codeword_valid <= 1'b0 ;
+        end
+    end
+
 
 endmodule
