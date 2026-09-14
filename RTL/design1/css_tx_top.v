@@ -42,7 +42,6 @@
 //   SUBCHIRP    : addr 0..151 into chirp_rom, modulate with s_reg[addr/38]
 //   GAP         : TEVEN (even group_idx) or TODD (odd group_idx) idle cycles
 //=============================================================================
-`timescale 1ns/1ps
 
 module css_tx_top #(
     parameter integer TEVEN           = 10,   // chirpIndex=1 (Table 15 of ref. doc)
@@ -57,7 +56,7 @@ module css_tx_top #(
     input  wire        reset,                            //system reset
 
     input  wire        start_Tx,                       //MAC -> PHY: begin transmission
-    input  wire [7:0]  PayloadLength,                 //payload length in bytes (0..127)
+    input  wire [6:0]  PayloadLength,                 //payload length in bytes (0..127)
 
     // payload RAM write port (MAC fills this before start_Tx; see header)
     input  wire                   payload_wr_en,
@@ -73,14 +72,16 @@ module css_tx_top #(
     // ---------------------------------------------------------------------
     // Payload RAM (127 bytes x 8 bits) -- simple write port from the MAC
     // ---------------------------------------------------------------------
+    wire [DATA_WIDTH-1:0] payload_rd_data ;
+    wire [ADDR_WIDTH-1:0] payload_rd_addr ;
 
     payload_ram #(.DATA_WIDTH(DATA_WIDTH),.ADDR_WIDTH(ADDR_WIDTH)) (
         .we(payload_wr_en),
         .waddr(payload_wr_addr),
         .din(payload_wr_data),
 
-        .raddr(), //!
-        .dout() //!
+        .raddr(payload_rd_addr), 
+        .dout(payload_rd_data) 
     );
 
     // ---------------------------------------------------------------------
@@ -90,10 +91,9 @@ module css_tx_top #(
     // combinational function raw_bit()/padded_bit(), since symbol_mapper
     // needs 6 padded-stream bits available in the same cycle).
     // ---------------------------------------------------------------------
-    reg  [7:0]  payload_length_reg;
-    wire [15:0] total_bits ;
+    wire  [7:0]  payload_length_reg;
+    
 
-    assign total_bits = 16'd12 + ({8'd0, payload_length_reg} << 3); //12 bit phy header + (no bytes * 8 )
 
     // wire [4:0]  pad_bits;
     wire [15:0] padded_total_bits;

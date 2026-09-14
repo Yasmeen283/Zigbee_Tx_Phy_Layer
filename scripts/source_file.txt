@@ -1,0 +1,3 @@
+../RTL/design1/zero_padding.v
+../RTL/design1/TB/tb_zero_padding.v
+
