@@ -83,7 +83,7 @@
 //     codeword). It is 2 bits wide (one I chip, one Q chip), so this is
 //     inexpensive. Overflow is not expected; an assertion-style overflow
 //     flag is exposed for verification rather than silently wrapping.
-//
+// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 //  7. KNOWN LIMITATION, 250 kbps only. At DATA_RATE=1 interleaver_stage
 //     emits two codewords back-to-back for every two it consumes, while
 //     ppdu_former captures only one per request. The codeword buffer in
@@ -93,6 +93,7 @@
 //     correct as it stands. Supporting 250 kbps requires moving the
 //     buffer downstream of interleaver_stage; this is called out rather
 //     than silently assumed to work.
+// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 //=============================================================================
 `timescale 1ns/1ps
 
@@ -109,11 +110,10 @@ module controller #(
     input  wire                          reset,
 
     // ---- packet-level control ------------------------------------------
-    input  wire                          start,              // 1-cycle pulse: begin a PPDU
-    input  wire [6:0]                    payload_length_reg, // payload length in bytes
-    output reg                           busy,
+    input  wire                          start_tx,              // 1-cycle pulse: begin a PPDU
+    input  wire [6:0]                    payload_length, // payload length in bytes
     output wire [NUM_SYMBOLS_WIDTH-1:0]  num_symbols,        // total symbols for this packet
-
+    output reg [6:0]                     payload_length_reg;
     // ---- to / from css_tx_frontend --------------------------------------
     output wire                          fe_load,
     output wire                          fe_enable,
@@ -122,6 +122,7 @@ module controller #(
     input  wire [M-1:0]                  fe_q_codeword,
     input  wire                          fe_q_codeword_valid,
     input  wire                          fe_frame_done,
+    input  wire [15:0]                   padded_total_bits,
 
     // ---- to / from interleaver_ppdu_top ---------------------------------
     output wire                          pf_start,
@@ -153,11 +154,7 @@ module controller #(
     // padding computation so num_symbols is available immediately at
     // start, without waiting for the frontend to run.
     // ------------------------------------------------------------------
-    wire [15:0] total_bits      = 16'd12 + ({9'd0, payload_length_reg} << 3);
-    wire [15:0] remainder       = total_bits % GROUP_SIZE;
-    wire [15:0] pad_bits        = (remainder == 16'd0) ? 16'd0 : (GROUP_SIZE - remainder);
-    wire [15:0] padded_total    = total_bits + pad_bits;
-    wire [15:0] codeword_pairs  = padded_total / (2*N_IN);
+    wire [15:0] codeword_pairs  = padded_total_bits / (2*N_IN);
     wire [15:0] payload_chips   = codeword_pairs * M;
     wire [15:0] total_symbols   = PREAMBLE_TOTAL_BITS + payload_chips;
 
@@ -166,15 +163,10 @@ module controller #(
     // ------------------------------------------------------------------
     // Start distribution (Assumption 4)
     // ------------------------------------------------------------------
-    assign fe_load  = start;
-    assign pf_start = start;
-    assign dp_start = start;
+    assign fe_load  = start_tx;
+    assign pf_start = start_tx;
+    assign dp_start = start_tx;
 
-    always @(posedge clk) begin
-        if (reset)            busy <= 1'b0;
-        else if (start)       busy <= 1'b1;
-        else if (dp_tx_done)  busy <= 1'b0;
-    end
 
     // ==================================================================
     // Codeword buffer (MISMATCH 2). 4-deep, holds I+Q codeword pairs.
@@ -193,11 +185,11 @@ module controller #(
     // Frontend advances only while there is room to accept what it makes,
     // and only while the packet is live and the frontend has not finished.
     reg fe_done_latched;
-    assign fe_enable = busy && !cw_full && !fe_done_latched;
+    assign fe_enable = !cw_full ;
 
     always @(posedge clk) begin
         if (reset)          fe_done_latched <= 1'b0;
-        else if (start)     fe_done_latched <= 1'b0;
+        else if (start_tx)     fe_done_latched <= 1'b0;
         else if (fe_frame_done && fe_enable) fe_done_latched <= 1'b1;
     end
 
@@ -243,9 +235,14 @@ module controller #(
     wire cw_pop  = pf_req_pending && !cw_empty && chip_room_for_codeword;
 
     always @(posedge clk) begin
-        if (reset || start) begin
+        if (reset) begin
             have_i <= 1'b0; have_q <= 1'b0; hold_last <= 1'b0;
             hold_i <= {M{1'b0}}; hold_q <= {M{1'b0}};
+            payload_length_reg <= 7'd0;
+        end else if (start_tx) begin 
+            have_i <= 1'b0; have_q <= 1'b0; hold_last <= 1'b0;
+            hold_i <= {M{1'b0}}; hold_q <= {M{1'b0}};
+            payload_length_reg <= payload_length;
         end else if (cw_push) begin
             have_i <= 1'b0; have_q <= 1'b0; hold_last <= 1'b0;
         end else begin
@@ -256,13 +253,21 @@ module controller #(
     end
 
     always @(posedge clk) begin
-        if (reset || start)         pf_req_pending <= 1'b0;
+        if (reset )         pf_req_pending <= 1'b0;
+        else if (start_tx)  pf_req_pending <= 1'b0;
         else if (pf_req_next_symbol) pf_req_pending <= 1'b1;
         else if (cw_pop)             pf_req_pending <= 1'b0;
     end
 
     always @(posedge clk) begin
-        if (reset || start) begin
+        if (reset) begin
+            cw_wptr <= 3'd0;  cw_rptr <= 3'd0;  cw_count <= 3'd0;
+            pf_i_codeword       <= {M{1'b0}};
+            pf_q_codeword       <= {M{1'b0}};
+            pf_i_codeword_valid <= 1'b0;
+            pf_q_codeword_valid <= 1'b0;
+            pf_last_codeword    <= 1'b0;
+        end else if (start_tx) begin
             cw_wptr <= 3'd0;  cw_rptr <= 3'd0;  cw_count <= 3'd0;
             pf_i_codeword       <= {M{1'b0}};
             pf_q_codeword       <= {M{1'b0}};
@@ -304,7 +309,15 @@ module controller #(
     wire chip_pop  = dp_symbol_req && !chip_fifo_empty;
 
     always @(posedge clk) begin
-        if (reset || start) begin
+        if (reset) begin
+            chip_wptr     <= {FIFO_AW{1'b0}};
+            chip_rptr     <= {FIFO_AW{1'b0}};
+            chip_count    <= {(FIFO_AW+1){1'b0}};
+            dp_i_bit      <= 1'b0;
+            dp_q_bit      <= 1'b0;
+            dp_qpsk_valid <= 1'b0;
+            fifo_overflow <= 1'b0;
+        end else if (start_tx) begin
             chip_wptr     <= {FIFO_AW{1'b0}};
             chip_rptr     <= {FIFO_AW{1'b0}};
             chip_count    <= {(FIFO_AW+1){1'b0}};

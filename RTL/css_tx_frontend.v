@@ -22,15 +22,16 @@ module css_tx_frontend #(
     output wire [M_OUT-1:0]     i_codeword,
     output wire                 i_codeword_valid,
     output wire [M_OUT-1:0]     q_codeword,
-    output wire                 q_codeword_valid
+    output wire                 q_codeword_valid,
+    output wire [15:0]          padded_total_bits
 );
 
     // 1. Zero Padding Block
     wire [15:0] zp_bit_index;
     wire        zp_bit_out;
     wire [4:0]  pad_bits;
-    wire [15:0] padded_total_bits;
-
+    
+    
     zero_padding #(
         .GROUP_SIZE(GROUP_SIZE),
         .DATA_WIDTH(DATA_WIDTH),

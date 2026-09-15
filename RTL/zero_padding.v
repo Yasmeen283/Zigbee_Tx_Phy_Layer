@@ -15,7 +15,7 @@ module zero_padding #(
     // ---- length / padding arithmetic --------------------------------------
     input  wire [6:0]   payload_length_reg,          // PHR(12) + PSDU(8*payloadLength) bit count
     output wire [4:0]   pad_bits,                   //? do i need this as an output // 0 .. GROUP_SIZE-1 zero bits appended //max no of 0's is 23 for the 250k mode
-    output wire [15:0]  padded_total_bits,         //? do i need this as an output // total_bits + pad_bits (multiple of GROUP_SIZE)
+    output wire [15:0]  padded_total_bits,         // total_bits + pad_bits (multiple of GROUP_SIZE)
 
     // ---- read payload ----------------------------------------------------
 

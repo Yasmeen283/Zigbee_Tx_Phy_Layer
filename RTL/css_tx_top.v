@@ -101,7 +101,6 @@ module css_tx_top #(
     wire               fe_load, fe_enable, fe_frame_done;
     wire [M-1:0]       fe_i_codeword, fe_q_codeword;
     wire               fe_i_codeword_valid, fe_q_codeword_valid;
-
     css_tx_frontend #(
         .GROUP_SIZE (GROUP_SIZE),
         .N_IN       (N_IN),
@@ -122,7 +121,8 @@ module css_tx_top #(
         .i_codeword         (fe_i_codeword),
         .i_codeword_valid   (fe_i_codeword_valid),
         .q_codeword         (fe_q_codeword),
-        .q_codeword_valid   (fe_q_codeword_valid)
+        .q_codeword_valid   (fe_q_codeword_valid),
+        .padded_total_bits  (padded_total_bits)
     );
 
     // ------------------------------------------------------------------
@@ -136,6 +136,7 @@ module css_tx_top #(
     wire                         dp_start, dp_symbol_req, dp_qpsk_valid;
     wire                         dp_i_bit, dp_q_bit;
     wire [NUM_SYMBOLS_WIDTH-1:0] num_symbols;
+    wire [15:0]                  padded_total_bits;
 
     controller #(
         .N_IN                (N_IN),
@@ -177,7 +178,7 @@ module css_tx_top #(
         .dp_q_bit            (dp_q_bit),
         .dp_qpsk_valid       (dp_qpsk_valid),
         .dp_tx_done          (tx_done),
-
+        .padded_total_bits   (padded_total_bits),
         .fifo_overflow       (fifo_overflow)
     );
 
