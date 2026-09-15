@@ -1,45 +1,47 @@
 //=============================================================================
 // qpsk_mapper.v
 //
-// Block 5.2 (QPSK Mapper) of the CSS PHY transmitter.
+// "MUX" block of Figure 3-3 / Step 6 of the PPDU processing chain.
 //
-// Combines one I chip and one Q chip (bipolar: 1 = +1, 0 = -1) into a single
-// complex QPSK symbol, per the formula given in Section 8.2 of the deep-dive
-// doc (straight from the MATLAB reference code):
+// Converts one (I,Q) bit pair into the QPSK rotation value the DQPSK
+// differential encoder needs. This is drawn as a MUX in the architecture
+// diagram (not an arithmetic block) because it really is just a 4-entry
+// lookup, not a computation -- confirmed against the deep-dive reference
+// formula QPSK_symbol = ((I+Q) - j(I-Q))/2, which always lands on one of
+// the four axis points {+1, +j, -1, -j}, never a general complex value:
 //
-//     QPSK_symbol = ((I + Q) - j*(I - Q)) / 2
+//   I  Q  | QPSK_symbol | quadrant code
+//   0  0  |     +1      |      00
+//   1  0  |     +j      |      01
+//   1  1  |     -1      |      10
+//   0  1  |     -j      |      11
 //
-// With I,Q in {+1,-1} this always lands on one of the 4 constellation
-// points, each with exactly one of {real, imag} equal to 0 and the other
-// equal to +-1:
-//     I=+1,Q=+1 -> ( +1 ,  0 )
-//     I=+1,Q=-1 -> (  0 , -1 )
-//     I=-1,Q=+1 -> (  0 , +1 )
-//     I=-1,Q=-1 -> ( -1 ,  0 )
+// (I=1,Q=0 bit convention matches the project-wide "0 = +1, 1 = -1" sign
+// convention used everywhere else -- I here is being read as a bipolar
+// +1/-1 value the same way dqpsk_sign_real/imag are, NOT as a magnitude.)
 //
-// Purely combinational -- one QPSK symbol per (i_bit,q_bit) pair, no clock
-// needed (matches "QPSK modulation is performed using multiplexers" in the
-// reference architecture).
+// qpsk_quadrant is a rotation count in units of 90 degrees (how many
+// times to rotate by +j), consumed directly by dqpsk_encoder.v.
+//
+// Purely combinational -- one (I,Q) pair in, one quadrant code out, same
+// cycle. No clock needed.
 //=============================================================================
 `timescale 1ns/1ps
 
 module qpsk_mapper (
-    input  wire              i_bit,       // bipolar I chip: 1 = +1, 0 = -1
-    input  wire              q_bit,       // bipolar Q chip: 1 = +1, 0 = -1
-    output wire signed [1:0] qpsk_real,   // in {-1, 0, +1}
-    output wire signed [1:0] qpsk_imag    // in {-1, 0, +1}
+    input  wire       i_bit,          // 0 = +1, 1 = -1 (project-wide sign convention)
+    input  wire       q_bit,          // 0 = +1, 1 = -1
+    output reg  [1:0] qpsk_quadrant   // 00=+1, 01=+j, 10=-1, 11=-j (rotation count x90 deg)
 );
 
-    wire signed [1:0] i_val = i_bit ? 2'sd1 : -2'sd1;
-    wire signed [1:0] q_val = q_bit ? 2'sd1 : -2'sd1;
-
-    // Widen before adding/subtracting so -2..+2 never truncates.
-    wire signed [2:0] i_sum  = i_val + q_val;
-    wire signed [2:0] i_diff = i_val - q_val;
-
-    // (I+Q)/2 and -(I-Q)/2 ; sums/differences of +-1 are always even (-2,0,+2)
-    // so the arithmetic right shift is an exact divide-by-2, no rounding.
-    assign qpsk_real =  (i_sum  >>> 1);
-    assign qpsk_imag = -(i_diff >>> 1);
+    always @(*) begin
+        case ({i_bit, q_bit})
+            2'b00:   qpsk_quadrant = 2'd0; // +1
+            2'b10:   qpsk_quadrant = 2'd1; // +j
+            2'b11:   qpsk_quadrant = 2'd2; // -1
+            2'b01:   qpsk_quadrant = 2'd3; // -j
+            default: qpsk_quadrant = 2'd0;
+        endcase
+    end
 
 endmodule

@@ -1,70 +1,110 @@
 //=============================================================================
 // dqpsk_encoder.v
 //
-// Block 6 (Differential QPSK Coding) of the CSS PHY transmitter.
+// Step 7 of the PPDU processing chain / the "4 FF DELAY" + first "X" block
+// of Figure 3-3.
 //
-// Implements  S(n) = X(n) * S(n-4)  (Section 9 of the deep-dive doc), a
-// complex multiply of the current QPSK symbol by the DQPSK symbol four
-// positions earlier. Realized with a 4-deep circular memory of complex
-// values (the "4 flip-flops" of the reference architecture) plus a complex
-// multiplier.
+// Implements S(n) = X(n) * S(n-4), per the reference equation, where X(n)
+// is this cycle's QPSK rotation (from qpsk_mapper.v) and S(n-4) is the
+// DQPSK symbol from 4 symbols ago.
 //
-// Initial condition: S(-4)..S(-1) = 1 + j1 (exp(j*pi/4) with the /sqrt(2)
-// normalization deliberately skipped, matching the reference MATLAB code --
-// only phase matters downstream, not magnitude).
+// *** Why this is a rotate, not a real complex multiplier ***
+// The initial condition is S(0)=S(1)=S(2)=S(3)=exp(j*pi/4) -- a UNIT
+// MAGNITUDE point at 45 degrees, i.e. real=imag (both "+1" in the sign
+// convention below, the 1/sqrt(2) scale factor is deliberately dropped
+// here exactly as the reference project's own MATLAB code does -- only
+// the phase matters for the chirp modulation stage, see complex_multiplier
+// .v). X(n) is always one of the 4 axis rotations {+1,+j,-1,-j} (see
+// qpsk_mapper.v). Rotating a 45/135/225/315-degree point by a multiple of
+// 90 degrees lands on another 45/135/225/315-degree point -- so S(n)
+// NEVER leaves the "both components +-1" representation, and the multiply
+// reduces to a swap-and-conditional-negate (see the table in the module
+// header comment below), exactly like complex_multiplier.v's own
+// simplification. No real multiplier hardware is used here either.
 //
-// Key hardware simplification used here: since X(n) always has exactly one
-// of {real,imag} equal to 0 and the other equal to +-1 (see qpsk_mapper.v),
-// and the initial S components are +-1, every S(n) produced by this
-// recursion *also* always has both components equal to +-1 (never 0) --
-// the complex multiply is really just a sign flip / swap (a rotation by a
-// multiple of 90 degrees). The multiply is left explicit below (X is tiny,
-// so it's cheap either way) but S is therefore only ever +-1 per
-// component, so 2-bit signed storage is exact and no growth/rounding logic
-// is ever needed.
+// Handshake: mirrors the same style already used between csk_generator and
+// its caller (single-cycle valid pulses). qpsk_valid indicates i_bit/q_bit
+// (by way of qpsk_mapper's qpsk_quadrant) are valid THIS cycle; one cycle
+// later, dqpsk_valid pulses with the new S(n) on dqpsk_sign_real/imag.
+//
+// Assumptions:
+//   - qpsk_valid is a single-cycle pulse; qpsk_quadrant must be valid the
+//     same cycle.
+//   - reset re-initializes all 4 delay slots to the S(0..3) reference
+//     value (sign_real=0, sign_imag=0, i.e. both "+1" in the 0=+1,1=-1
+//     convention), per the standard's stated initial condition.
+//   - There is no back-pressure: a new qpsk_valid pulse is assumed not to
+//     arrive before the previous one's dqpsk_valid has been consumed
+//     downstream (this module produces one output per input, one cycle
+//     later, unconditionally).
 //=============================================================================
 `timescale 1ns/1ps
 
 module dqpsk_encoder (
-    input  wire              clk,
-    input  wire              reset,        // synchronous reset: reloads S(-4)..S(-1) = 1+j1
-    input  wire              symbol_valid, // pulse: consume X(n) this cycle, S(n) appears next cycle
-    input  wire signed [1:0] x_real,       // QPSK symbol from qpsk_mapper: in {-1,0,+1}
-    input  wire signed [1:0] x_imag,
-    output reg  signed [1:0] s_real,       // DQPSK output S(n): always -1 or +1
-    output reg  signed [1:0] s_imag        // DQPSK output S(n): always -1 or +1
+    input  wire       clk,
+    input  wire       reset,          // synchronous, active-high -- reloads the
+                                       // S(0..3) initial condition into the delay line
+
+    input  wire        qpsk_valid,     // qpsk_quadrant is valid this cycle
+    input  wire [1:0]  qpsk_quadrant,  // rotation to apply, from qpsk_mapper.v
+
+    output reg         dqpsk_valid,    // new S(n) is valid this cycle (1-cycle pulse)
+    output reg         dqpsk_sign_real,// S(n) real sign: 0 = +1, 1 = -1
+    output reg         dqpsk_sign_imag // S(n) imag sign: 0 = +1, 1 = -1
 );
 
-    // 4-deep circular memory holding S(n-4)..S(n-1)
-    reg signed [1:0] mem_real [0:3];
-    reg signed [1:0] mem_imag [0:3];
-    reg [1:0]        wptr;   // points at the oldest entry, i.e. S(n-4)
-
+    // ------------------------------------------------------------------
+    // 4-deep delay line of previously-produced (sign_real, sign_imag)
+    // pairs -- slot 0 is the OLDEST (this is S(n-4)); slot 3 is the most
+    // recently produced symbol.
+    // ------------------------------------------------------------------
+    reg sr_q [0:3];
+    reg si_q [0:3];
     integer k;
+
+    // ------------------------------------------------------------------
+    // Rotate S(n-4) = (sr_q[0], si_q[0]) by qpsk_quadrant -- see header
+    // comment for the derivation:
+    //   quadrant 0 (x  1): (sr,  si )
+    //   quadrant 1 (x +j): (-si, sr )
+    //   quadrant 2 (x -1): (-sr, -si)
+    //   quadrant 3 (x -j): (si, -sr )
+    // Sign bits use 0=+1,1=-1, so "negate" is just a bit flip (XOR 1).
+    // ------------------------------------------------------------------
+    reg new_sr, new_si;
+    always @(*) begin
+        case (qpsk_quadrant)
+            2'd0: begin new_sr = sr_q[0];        new_si = si_q[0];        end
+            2'd1: begin new_sr = ~si_q[0];       new_si = sr_q[0];        end
+            2'd2: begin new_sr = ~sr_q[0];       new_si = ~si_q[0];       end
+            2'd3: begin new_sr = si_q[0];        new_si = ~sr_q[0];       end
+            default: begin new_sr = sr_q[0];     new_si = si_q[0];        end
+        endcase
+    end
 
     always @(posedge clk) begin
         if (reset) begin
             for (k = 0; k < 4; k = k + 1) begin
-                mem_real[k] <= 2'sd1;
-                mem_imag[k] <= 2'sd1;
+                sr_q[k] <= 1'b0; // both +1 -> the exp(j*pi/4) reference point
+                si_q[k] <= 1'b0;
             end
-            wptr   <= 2'd0;
-            s_real <= 2'sd1;
-            s_imag <= 2'sd1;
-        end else if (symbol_valid) begin : do_complex_mult
-            // (Xr + jXi) * (Sr + jSi) ; Sr,Si = mem_{real,imag}[wptr] = S(n-4)
-            reg signed [3:0] new_real, new_imag;
-            new_real = x_real * mem_real[wptr] - x_imag * mem_imag[wptr];
-            new_imag = x_real * mem_imag[wptr] + x_imag * mem_real[wptr];
+            dqpsk_valid     <= 1'b0;
+            dqpsk_sign_real <= 1'b0;
+            dqpsk_sign_imag <= 1'b0;
+        end else begin
+            dqpsk_valid <= 1'b0; // default; overridden below
+            if (qpsk_valid) begin
+                // shift the delay line: drop slot0 (just consumed),
+                // push the new symbol in at slot3
+                sr_q[0] <= sr_q[1]; si_q[0] <= si_q[1];
+                sr_q[1] <= sr_q[2]; si_q[1] <= si_q[2];
+                sr_q[2] <= sr_q[3]; si_q[2] <= si_q[3];
+                sr_q[3] <= new_sr;  si_q[3] <= new_si;
 
-            // Invariant (see header comment): new_real,new_imag are always
-            // exactly +-1, so the low 2 bits are an exact signed result.
-            s_real <= new_real[1:0];
-            s_imag <= new_imag[1:0];
-
-            mem_real[wptr] <= new_real[1:0];
-            mem_imag[wptr] <= new_imag[1:0];
-            wptr <= wptr + 2'd1;
+                dqpsk_valid     <= 1'b1;
+                dqpsk_sign_real <= new_sr;
+                dqpsk_sign_imag <= new_si;
+            end
         end
     end
 
