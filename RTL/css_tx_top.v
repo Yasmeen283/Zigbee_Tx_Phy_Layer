@@ -49,9 +49,7 @@ module css_tx_top #(
     parameter integer ADDR_WIDTH          = 7,
     parameter integer NUM_SYMBOLS_WIDTH   = 12,
     parameter integer ROM_WIDTH           = 5,
-    parameter integer OUT_WIDTH           = 6,
-    parameter         MEMFILE_I           = "symbol_mapper_1mbps.mem",
-    parameter         MEMFILE_Q           = "symbol_mapper_1mbps.mem"
+    parameter integer OUT_WIDTH           = 6
 )(
     input  wire                        clk,
     input  wire                        reset,
@@ -107,9 +105,7 @@ module css_tx_top #(
         .N_IN       (N_IN),
         .M_OUT      (M),
         .DATA_WIDTH (DATA_WIDTH),
-        .ADDR_WIDTH (ADDR_WIDTH),
-        .MEMFILE_I  (MEMFILE_I),
-        .MEMFILE_Q  (MEMFILE_Q)
+        .ADDR_WIDTH (ADDR_WIDTH)
     ) u_frontend (
         .clk                (clk),
         .reset              (reset),
