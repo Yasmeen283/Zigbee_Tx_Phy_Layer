@@ -4,9 +4,7 @@ module css_tx_frontend #(
     parameter N_IN       = 3,                             // 3 for 1Mbps, 6 for 250kbps
     parameter M_OUT      = 4,                             // 4 for 1Mbps, 32 for 250kbps
     parameter DATA_WIDTH = 8,
-    parameter ADDR_WIDTH = 7,
-    parameter MEMFILE_I  = "symbol_mapper_1mbps.mem",
-    parameter MEMFILE_Q  = "symbol_mapper_1mbps.mem"
+    parameter ADDR_WIDTH = 7
 ) (
     input  wire                 clk,
     input  wire                 reset,
@@ -109,8 +107,7 @@ module css_tx_frontend #(
     // 4. Symbol Mapper Blocks (I & Q Paths)
     symbol_mapper #(
         .N_IN     (N_IN),
-        .M_OUT    (M_OUT),
-        .MEMFILE  (MEMFILE_I)
+        .M_OUT    (M_OUT)
     ) u_mapper_i (
         .clk            (clk),
         .group_in       (i_group),
@@ -121,8 +118,7 @@ module css_tx_frontend #(
 
     symbol_mapper #(
         .N_IN     (N_IN),
-        .M_OUT    (M_OUT),
-        .MEMFILE  (MEMFILE_Q)
+        .M_OUT    (M_OUT)
     ) u_mapper_q (
         .clk            (clk),
         .group_in       (q_group),

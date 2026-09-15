@@ -113,7 +113,7 @@ module controller #(
     input  wire                          start_tx,              // 1-cycle pulse: begin a PPDU
     input  wire [6:0]                    payload_length, // payload length in bytes
     output wire [NUM_SYMBOLS_WIDTH-1:0]  num_symbols,        // total symbols for this packet
-    output reg [6:0]                     payload_length_reg;
+    output reg [6:0]                     payload_length_reg,
     // ---- to / from css_tx_frontend --------------------------------------
     output wire                          fe_load,
     output wire                          fe_enable,

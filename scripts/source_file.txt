@@ -1,7 +1,6 @@
 ../RTL/chirp_rom.v
 ../RTL/complex_multiplier.v
 ../RTL/csk_generator.v
-../RTL/css_modulator.v
 ../RTL/css_symbol_generator.v
 ../RTL/css_tx_frontend.v
 ../RTL/demux_iq.v
@@ -18,6 +17,8 @@
 ../RTL/symbol_mapper.v
 ../RTL/tx_datapath_top.v
 ../RTL/zero_padding.v
+../RTL/controller.v
+../RTL/css_tx_top.v
 ../TB/chirp_rom_tb.v
 ../TB/csk_generator_tb.sv
 ../TB/css_symbol_generator_tb.sv

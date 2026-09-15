@@ -44,7 +44,7 @@ module ppdu_former #(
     output wire           i_bit,
     output wire           q_bit,
     output wire           chip_valid,       // 1 while i_bit/q_bit carry a real chip this cycle
-    output reg             frame_done       // 1-cycle pulse once the last payload chip has gone out
+    output reg            frame_done       // 1-cycle pulse once the last payload chip has gone out
 );
 
     // ---------------------------------------------------------------
@@ -94,7 +94,7 @@ module ppdu_former #(
     // ---------------------------------------------------------------
     // Sequencer: PREAMBLE first, then PAYLOAD
     // ---------------------------------------------------------------
-    localparam [1:0] S_IDLE          = 2'd0,
+    localparam [1:0]  S_IDLE         = 2'd0,
                       S_PREAMBLE     = 2'd1,
                       S_PAYLOAD_WAIT = 2'd2,
                       S_PAYLOAD_SHIFT= 2'd3;
