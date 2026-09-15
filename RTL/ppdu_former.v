@@ -26,7 +26,7 @@
 module ppdu_former #(
     parameter integer M                    = 4,   // codeword width post interleaver_stage: 4 (1Mbps) / 32 (250kbps)
     parameter integer PREAMBLE_TOTAL_BITS  = 48,   // 48 (1Mbps) / 96 (250kbps)
-    parameter         PREAMBLE_MEMFILE     = "vectors/preamble_sfd_1mbps.mem"
+    parameter         PREAMBLE_MEMFILE     = "../vectors/preamble_sfd_1mbps.mem"
 )(
     input  wire          clk,
     input  wire          reset,
@@ -54,8 +54,7 @@ module ppdu_former #(
     wire       preamble_bit;
 
     preamble_sfd_rom #(
-        .TOTAL_BITS (PREAMBLE_TOTAL_BITS),
-        .MEMFILE    (PREAMBLE_MEMFILE)
+        .TOTAL_BITS (PREAMBLE_TOTAL_BITS)
     ) u_preamble_sfd (
         .addr    (preamble_addr),
         .bit_out (preamble_bit)
@@ -64,7 +63,7 @@ module ppdu_former #(
     // ---------------------------------------------------------------
     // Payload chip shifters (dual of serial_to_parallel, one per path)
     // ---------------------------------------------------------------
-    wire payload_load = (state == S_PAYLOAD_WAIT) && i_codeword_valid && q_codeword_valid;
+    wire payload_load ;
 
     wire i_payload_bit, q_payload_bit;
     wire i_payload_valid, q_payload_valid;
@@ -102,6 +101,8 @@ module ppdu_former #(
 
     reg [1:0] state;
     reg       pending_last;   // latches last_codeword for the pair currently shifting
+
+    assign payload_load = (state == S_PAYLOAD_WAIT) && i_codeword_valid && q_codeword_valid;
 
     always @(posedge clk) begin
         if (reset) begin

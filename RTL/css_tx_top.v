@@ -65,7 +65,7 @@ module css_tx_top #(
 
     output reg               done_Tx,           //PHY -> MAC: transmission finished (1-cycle pulse)
     output reg  signed [7:0] Tx_real,          //real part of the CSS/DQCSK sample stream
-    output reg  signed [7:0] Tx_imag,         //imaginary part of the CSS/DQCSK sample stream
+    output reg  signed [7:0] Tx_imag         //imaginary part of the CSS/DQCSK sample stream
     // output reg         tx_valid              // extra: 1 while Tx_real/Tx_imag carry a real sample
 );
 
@@ -173,14 +173,14 @@ module css_tx_top #(
         u_symmap_I (.clk(clk), 
                     .group_in(i_symbol) , 
                     .group_valid(i_symbol_valid), 
-                    .codeword_out(i_codeword) 
+                    .codeword_out(i_codeword) ,
                     .codeword_valid(i_codeword_valid));
 
     symbol_mapper #( .N_IN(N), .M_OUT(M), .MEMFILE(SYMROM_1MBPS) )
         u_symmap_Q (.clk(clk), 
                     .group_in(q_symbol) , 
                     .group_valid(q_symbol_valid), 
-                    .codeword_out(q_codeword) 
+                    .codeword_out(q_codeword) ,
                     .codeword_valid(q_codeword_valid));
   
 

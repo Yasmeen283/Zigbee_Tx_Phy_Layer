@@ -21,8 +21,7 @@
 
 module interleaver (
     input  wire [63:0] data_in,        // group i occupies bits [63-4*i -: 4], i=0..15 (G0 = MSB group)
-    input  wire        group_valid,
-    output wire [63:0] data_out,
+    output wire [63:0] data_out
 );
 
     // PERM[i] = which input group feeds output position i
