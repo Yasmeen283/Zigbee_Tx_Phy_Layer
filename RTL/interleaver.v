@@ -21,9 +21,8 @@
 
 module interleaver (
     input  wire [63:0] data_in,        // group i occupies bits [63-4*i -: 4], i=0..15 (G0 = MSB group)
-    input  wire        codeword_valid,
+    input  wire        group_valid,
     output wire [63:0] data_out,
-    output wire        data_valid
 );
 
     // PERM[i] = which input group feeds output position i
@@ -58,8 +57,5 @@ module interleaver (
             assign data_out[63-4*gi -: 4] = data_in[63-4*src_idx -: 4];
         end
     endgenerate
-
-    // Purely combinational permutation -> valid follows valid, same cycle.
-    assign data_valid = codeword_valid;
 
 endmodule

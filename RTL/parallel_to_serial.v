@@ -46,19 +46,19 @@ module parallel_to_serial #(
                 // First chip is available immediately (MSB), remaining M-1
                 // chips shift out over the next M-1 cycles.
                 shift_reg <= data_in;
-                cnt       <= M[$clog2(M+1)-1:0] - 1'b1;
+                cnt       <= '0 ; 
                 busy      <= 1'b1;
-                bit_out   <= data_in[M-1];
+                bit_out   <= data_in[0]; 
                 bit_valid <= 1'b1;
             end else if (busy) begin
-                if (cnt == 0) begin
+                if (cnt == (M[$clog2(M+1)-1:0] - 1'b1)) begin
                     busy      <= 1'b0;
                     bit_valid <= 1'b0;
                     done      <= 1'b1;
                 end else begin
-                    shift_reg <= shift_reg << 1;
-                    cnt       <= cnt - 1'b1;
-                    bit_out   <= shift_reg[M-2];
+                    shift_reg <= shift_reg >> 1;
+                    cnt       <= cnt + 1'b1;
+                    bit_out   <= shift_reg[0]; //?
                     bit_valid <= 1'b1;
                 end
             end else begin
