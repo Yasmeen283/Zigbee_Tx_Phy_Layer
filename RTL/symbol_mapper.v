@@ -36,41 +36,38 @@ module symbol_mapper #(
     // tiny and synthesizes as LUT logic; keeping it combinational removes
     // any pipeline-latency bookkeeping from the top-level controller (same
     // rationale as chirp_rom.v).
-    reg [M_OUT-1:0] rom [0:NUM_WORDS-1];
+    // reg [M_OUT-1:0] rom [0:NUM_WORDS-1];
+    reg [M_OUT-1:0] rom ;
 
-     generate
+    generate
         if (DATA_RATE == 1'b0) begin : gen_rom_1mbps
-            function [3:0] rom;
-                input [2:0] addr;
-                begin
-                    case (addr)
-                    3'd0: rom = 4'b1010;
-                    3'd1: rom = 4'b1011;
-                    3'd2: rom = 4'b1000;
-                    3'd3: rom = 4'b1001;
-                    3'd4: rom = 4'b1110;
-                    3'd5: rom = 4'b1111;
-                    3'd6: rom = 4'b1100;
-                    3'd7: rom = 4'b1101;
-                    default: rom = 4'b0000;
+            always @(*) begin
+                    case (group_in)
+                        3'd0: rom = 4'b1010;
+                        3'd1: rom = 4'b1011;
+                        3'd2: rom = 4'b1000;
+                        3'd3: rom = 4'b1001;
+                        3'd4: rom = 4'b1110;
+                        3'd5: rom = 4'b1111;
+                        3'd6: rom = 4'b1100;
+                        3'd7: rom = 4'b1101;
+                        default: rom = 4'b0000;
                     endcase
-                end
-            endfunction
-        end else begin : gen_rom_250kbps
-            function [31:0] rom;
-                input [5:0] addr;
-                begin
-                    case (addr)
-                    6'd 0: rom = 32'b00000000000000000000000000000000;
-                    6'd 1: rom = 32'b00000100000100000100000100000101;
-                    6'd 2: rom = 32'b00001000001000001000001000001010;
-                    6'd 3: rom = 32'b00001100001100001100001100001111;
-                    6'd 4: rom = 32'b00010000010000010000010000010000;
-                    6'd 5: rom = 32'b00010100010100010100010100010101;
-                    6'd 6: rom = 32'b00011000011000011000011000011010;
-                    6'd 7: rom = 32'b00011100011100011100011100011111;
-                    6'd 8: rom = 32'b00100000100000100000100000100000;
-                    6'd 9: rom = 32'b00100100100100100100100100100101;
+            end
+        end
+        else begin : gen_rom_250kbps
+            always @(*) begin
+                case (group_in)
+                    6'd0: rom = 32'b00000000000000000000000000000000;
+                    6'd1: rom = 32'b00000100000100000100000100000101;
+                    6'd2: rom = 32'b00001000001000001000001000001010;
+                    6'd3: rom = 32'b00001100001100001100001100001111;
+                    6'd4: rom = 32'b00010000010000010000010000010000;
+                    6'd5: rom = 32'b00010100010100010100010100010101;
+                    6'd6: rom = 32'b00011000011000011000011000011010;
+                    6'd7: rom = 32'b00011100011100011100011100011111;
+                    6'd8: rom = 32'b00100000100000100000100000100000;
+                    6'd9: rom = 32'b00100100100100100100100100100101;
                     6'd10: rom = 32'b00101000101000101000101000101010;
                     6'd11: rom = 32'b00101100101100101100101100101111;
                     6'd12: rom = 32'b00110000110000110000110000110000;
@@ -126,15 +123,15 @@ module symbol_mapper #(
                     6'd62: rom = 32'b11111011111011111011111011111010;
                     6'd63: rom = 32'b11111111111111111111111111111111;
                     default: rom = 32'b0;
-                    endcase
-                end
-            endfunction
+                endcase
+            end
         end
     endgenerate
 
     always @(posedge clk) begin
         if(group_valid) begin
-            codeword_out <= rom[group_in];
+            // codeword_out <= rom[group_in];
+            codeword_out <= rom;
             codeword_valid <= 1'b1 ;
         end
         else begin

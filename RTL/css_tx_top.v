@@ -105,7 +105,8 @@ module css_tx_top #(
         .N_IN       (N_IN),
         .M_OUT      (M),
         .DATA_WIDTH (DATA_WIDTH),
-        .ADDR_WIDTH (ADDR_WIDTH)
+        .ADDR_WIDTH (ADDR_WIDTH),
+        .DATA_RATE  (DATA_RATE)
     ) u_frontend (
         .clk                (clk),
         .reset              (reset),

@@ -6,8 +6,8 @@ module tb_css_tx_frontend;
     parameter ADDR_WIDTH = 7;
 
     // Memory File Paths - Adjust if necessary
-    parameter MEMFILE_1M   = "../RTL/design1/vectors/symbol_mapper_1Mbps.mem";
-    parameter MEMFILE_250K = "../RTL/design1/vectors/symbol_mapper_250kbps.mem";
+    parameter MEMFILE_1M   = "../vectors/symbol_mapper_1Mbps.mem";
+    parameter MEMFILE_250K = "../vectors/symbol_mapper_250kbps.mem";
 
     reg clk;
     reg reset;
@@ -21,12 +21,15 @@ module tb_css_tx_frontend;
     wire frame_done_1m;
     wire [3:0] i_codeword_1m, q_codeword_1m;
     wire i_valid_1m, q_valid_1m;
+    wire [15:0] padded_total_bits_1m ;
 
     // DUT 2: 250 kbps Mode (N=6, M=32, GROUP_SIZE=24)
     wire [ADDR_WIDTH-1:0] payload_rd_addr_250k;
     wire frame_done_250k;
     wire [31:0] i_codeword_250k, q_codeword_250k;
     wire i_valid_250k, q_valid_250k;
+    wire [15:0] padded_total_bits_250k ;
+
 
     // Output check trackers
     integer err_count_1m = 0;
@@ -129,13 +132,12 @@ module tb_css_tx_frontend;
 
     // DUT 1: 1 Mbps Instance
     css_tx_frontend #(
-        .GROUP_SIZE(6), .N_IN(3), .M_OUT(4),
-        .MEMFILE_I(MEMFILE_1M), .MEMFILE_Q(MEMFILE_1M)
-    ) uut_1m (
+        .GROUP_SIZE(6), .N_IN(3), .M_OUT(4), .DATA_RATE(0) ) uut_1m (
         .clk(clk), .reset(reset), .load(load_1m), .enable(enable_1m),
         .payload_length_reg(payload_length_reg),
         .payload_rd_data(ram_memory[payload_rd_addr_1m]),
         .payload_rd_addr(payload_rd_addr_1m),
+        .padded_total_bits(padded_total_bits_1m),
         .frame_done(frame_done_1m),
         .i_codeword(i_codeword_1m), .i_codeword_valid(i_valid_1m),
         .q_codeword(q_codeword_1m), .q_codeword_valid(q_valid_1m)
@@ -143,13 +145,12 @@ module tb_css_tx_frontend;
 
     // DUT 2: 250 kbps Instance
     css_tx_frontend #(
-        .GROUP_SIZE(24), .N_IN(6), .M_OUT(32),
-        .MEMFILE_I(MEMFILE_250K), .MEMFILE_Q(MEMFILE_250K)
-    ) uut_250k (
+        .GROUP_SIZE(24), .N_IN(6), .M_OUT(32), .DATA_RATE(1) ) uut_250k (
         .clk(clk), .reset(reset), .load(load_250k), .enable(enable_250k),
         .payload_length_reg(payload_length_reg),
         .payload_rd_data(ram_memory[payload_rd_addr_250k]),
         .payload_rd_addr(payload_rd_addr_250k),
+        .padded_total_bits(padded_total_bits_250k),
         .frame_done(frame_done_250k),
         .i_codeword(i_codeword_250k), .i_codeword_valid(i_valid_250k),
         .q_codeword(q_codeword_250k), .q_codeword_valid(q_valid_250k)
