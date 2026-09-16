@@ -14,7 +14,6 @@ module zero_padding #(
 
     // ---- length / padding arithmetic --------------------------------------
     input  wire [6:0]   payload_length_reg,          // PHR(12) + PSDU(8*payloadLength) bit count
-    output wire [4:0]   pad_bits,                   //? do i need this as an output // 0 .. GROUP_SIZE-1 zero bits appended //max no of 0's is 23 for the 250k mode
     output wire [15:0]  padded_total_bits,         // total_bits + pad_bits (multiple of GROUP_SIZE)
 
     // ---- read payload ----------------------------------------------------
@@ -23,18 +22,21 @@ module zero_padding #(
     output reg  [ADDR_WIDTH-1:0] payload_rd_addr, 
 
     // ---- serial bit gate ----------------------------------------------------
-    output reg  [15:0]  bit_index,          //? do i need the whole bus as an output // 0-based position within the padded stream --
+    output wire  bit_index_sel,          // 0-based position within the padded stream --
                                            // value of PHR/PSDU bit `bit_index` (only meaningful
                                           // when bit_index < total_bits; framer/RAM supplies it)
 
     output wire         bit_out,            // payload bit, or 0 inside the padding region
-    output wire         frame_done         // high when bit_index is on the last bit of the padded frame
+    output reg  [1:0]   state,             //output for css tx frontend
+    output wire         frame_done        // high when bit_index is on the last bit of the padded frame
 );
 
     // ------------------------------------------------------------------
     // Padding arithmetic -- combinational
     // ------------------------------------------------------------------
     //PHR(12) + PSDU(8*payloadLength) bit count
+    reg [15:0]  bit_index ;
+    wire [4:0]  pad_bits;            // 0 .. GROUP_SIZE-1 zero bits appended //max no of 0's is 23 for the 250k mode
     wire [15:0] total_bits ;
     assign total_bits = 16'd12 + ({9'd0, payload_length_reg} << 3); //12 bit phy header + (no bytes * 8 )
 
@@ -61,7 +63,7 @@ module zero_padding #(
                      PHR  = 2'b01,
                      PSDU = 2'b11; 
 
-    reg [1:0] state , next_state ;
+    reg [1:0] next_state ;
 
     always @(posedge clk) begin
         if (reset) begin
@@ -147,4 +149,6 @@ module zero_padding #(
     end
 
     assign bit_out = (bit_index_d < total_bits) ? payload_bit_in : 1'b0;
+
+    assign bit_index_sel = bit_index[0];
 endmodule

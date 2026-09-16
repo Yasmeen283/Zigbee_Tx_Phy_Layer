@@ -14,6 +14,6 @@ module preamble_sfd_rom #(
     localparam [TOTAL_BITS-1:0] BITS = { {PREAMBLE_LEN{1'b1}}, SFD };
 
     // Index from MSB to LSB based on input address
-    assign bit_out = BITS[TOTAL_BITS - 1 - addr] ;
+    assign bit_out = BITS[TOTAL_BITS - 1 - addr] ; //!
 
 endmodule

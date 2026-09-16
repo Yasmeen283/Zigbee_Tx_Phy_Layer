@@ -21,8 +21,7 @@ module interleaver_ppdu_top #(
     output wire          req_next_symbol,  // Handshake pulse to upstream controller
     output wire          i_bit,            // Serial output chip (I)
     output wire          q_bit,            // Serial output chip (Q)
-    output wire          chip_valid,       // Active during preamble and valid payload chips
-    output wire          frame_done        // Indicates end of PPDU frame
+    output wire          chip_valid       // Active during preamble and valid payload chips
 );
 
     // Signals between interleaver stages and PPDU former
@@ -79,8 +78,7 @@ module interleaver_ppdu_top #(
         .req_next_symbol  (req_next_symbol),
         .i_bit            (i_bit),
         .q_bit            (q_bit),
-        .chip_valid       (chip_valid),
-        .frame_done       (frame_done)
+        .chip_valid       (chip_valid)
     );
 
 endmodule

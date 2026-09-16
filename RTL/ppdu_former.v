@@ -43,8 +43,7 @@ module ppdu_former #(
 
     output wire           i_bit,
     output wire           q_bit,
-    output wire           chip_valid,       // 1 while i_bit/q_bit carry a real chip this cycle
-    output reg            frame_done       // 1-cycle pulse once the last payload chip has gone out
+    output wire           chip_valid       // 1 while i_bit/q_bit carry a real chip this cycle
 );
 
     // ---------------------------------------------------------------
@@ -109,11 +108,9 @@ module ppdu_former #(
             state           <= S_IDLE;
             preamble_addr   <= 8'd0;
             req_next_symbol <= 1'b0;
-            frame_done      <= 1'b0;
             pending_last    <= 1'b0;
         end else begin
             req_next_symbol <= 1'b0;
-            frame_done      <= 1'b0;
 
             case (state)
                 // ---------------------------------------------------
@@ -148,7 +145,6 @@ module ppdu_former #(
                 S_PAYLOAD_SHIFT: begin
                     if (i_done && q_done) begin
                         if (pending_last) begin
-                            frame_done <= 1'b1;
                             state      <= S_IDLE;
                         end else begin
                             req_next_symbol <= 1'b1;

@@ -135,7 +135,6 @@ module controller #(
     input  wire                          pf_i_bit,
     input  wire                          pf_q_bit,
     input  wire                          pf_chip_valid,
-    input  wire                          pf_frame_done,
 
     // ---- to / from tx_datapath_top --------------------------------------
     output wire                          dp_start,
@@ -143,7 +142,6 @@ module controller #(
     output reg                           dp_i_bit,
     output reg                           dp_q_bit,
     output reg                           dp_qpsk_valid,
-    input  wire                          dp_tx_done,
 
     // ---- status ----------------------------------------------------------
     output reg                           fifo_overflow   // verification aid; should never assert

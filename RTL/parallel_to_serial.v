@@ -13,7 +13,8 @@
 `timescale 1ns/1ps
 
 module parallel_to_serial #(
-    parameter integer M = 4                 // codeword width: 4 (1Mbps) or 32 (250kbps)
+    parameter integer M = 4 ,                // codeword width: 4 (1Mbps) or 32 (250kbps)
+    parameter cnt_width = $clog2(M+1) 
 )(
     input  wire          clk,
     input  wire          reset,
@@ -28,13 +29,13 @@ module parallel_to_serial #(
 );
 
     reg [M-1:0]       shift_reg;
-    reg [$clog2(M+1)-1:0] cnt;              // counts remaining chips after the first
+    reg [cnt_width-1:0] cnt;              // counts remaining chips after the first
     reg               busy;
 
     always @(posedge clk) begin
         if (reset) begin
             shift_reg <= {M{1'b0}};
-            cnt       <= '0;
+            cnt       <= {cnt_width{1'b0}};
             busy      <= 1'b0;
             bit_out   <= 1'b0;
             bit_valid <= 1'b0;
@@ -46,7 +47,7 @@ module parallel_to_serial #(
                 // First chip is available immediately (MSB), remaining M-1
                 // chips shift out over the next M-1 cycles.
                 shift_reg <= data_in;
-                cnt       <= '0 ; 
+                cnt       <= {cnt_width{1'b0}} ; 
                 busy      <= 1'b1;
                 bit_out   <= data_in[0]; 
                 bit_valid <= 1'b1;

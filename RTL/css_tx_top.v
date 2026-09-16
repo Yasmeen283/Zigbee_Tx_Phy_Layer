@@ -60,10 +60,9 @@ module css_tx_top #(
     input  wire [DATA_WIDTH-1:0]       payload_wdata,
 
     // ---- packet control --------------------------------------------------
-    input  wire                        start,               // 1-cycle pulse
-    input  wire [6:0]                  payload_length_reg,  // PSDU length in bytes
+    input  wire                        start_tx,               // 1-cycle pulse
+    input  wire [6:0]                  payload_length,  // PSDU length in bytes
     input  wire [1:0]                  chirp_index,         // CSK sequence select (m=1-4 as 0-3)
-    output wire                        busy,
     output wire                        tx_done,
 
     // ---- transmitted baseband output --------------------------------------
@@ -80,6 +79,7 @@ module css_tx_top #(
     // ------------------------------------------------------------------
     wire [ADDR_WIDTH-1:0] payload_rd_addr;
     wire [DATA_WIDTH-1:0] payload_rd_data;
+    wire [6:0] payload_length_reg ;
 
     payload_ram #(
         .DATA_WIDTH (DATA_WIDTH),
@@ -129,7 +129,7 @@ module css_tx_top #(
     wire                         pf_start, pf_last_codeword;
     wire [M-1:0]                 pf_i_codeword, pf_q_codeword;
     wire                         pf_i_codeword_valid, pf_q_codeword_valid;
-    wire                         pf_req_next_symbol, pf_chip_valid, pf_frame_done;
+    wire                         pf_req_next_symbol, pf_chip_valid;
     wire                         pf_i_bit, pf_q_bit;
     wire                         dp_start, dp_symbol_req, dp_qpsk_valid;
     wire                         dp_i_bit, dp_q_bit;
@@ -144,9 +144,9 @@ module css_tx_top #(
     ) u_controller (
         .clk                 (clk),
         .reset               (reset),
-        .start               (start),
+        .start_tx            (start_tx),
+        .payload_length      (payload_length),
         .payload_length_reg  (payload_length_reg),
-        .busy                (busy),
         .num_symbols         (num_symbols),
 
         .fe_load             (fe_load),
@@ -167,14 +167,12 @@ module css_tx_top #(
         .pf_i_bit            (pf_i_bit),
         .pf_q_bit            (pf_q_bit),
         .pf_chip_valid       (pf_chip_valid),
-        .pf_frame_done       (pf_frame_done),
 
         .dp_start            (dp_start),
         .dp_symbol_req       (dp_symbol_req),
         .dp_i_bit            (dp_i_bit),
         .dp_q_bit            (dp_q_bit),
         .dp_qpsk_valid       (dp_qpsk_valid),
-        .dp_tx_done          (tx_done),
         .padded_total_bits   (padded_total_bits),
         .fifo_overflow       (fifo_overflow)
     );
@@ -199,8 +197,7 @@ module css_tx_top #(
         .req_next_symbol  (pf_req_next_symbol),
         .i_bit            (pf_i_bit),
         .q_bit            (pf_q_bit),
-        .chip_valid       (pf_chip_valid),
-        .frame_done       (pf_frame_done)
+        .chip_valid       (pf_chip_valid)
     );
 
     // ------------------------------------------------------------------

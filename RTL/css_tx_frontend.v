@@ -26,9 +26,9 @@ module css_tx_frontend #(
 );
 
     // 1. Zero Padding Block
-    wire [15:0] zp_bit_index;
+    wire zp_bit_index_sel;
     wire        zp_bit_out;
-    wire [4:0]  pad_bits;
+    wire [1:0] zp_state;
     
     
     zero_padding #(
@@ -41,12 +41,12 @@ module css_tx_frontend #(
         .load               (load),
         .enable             (enable),
         .payload_length_reg (payload_length_reg),
-        .pad_bits           (pad_bits),
         .padded_total_bits  (padded_total_bits),
         .payload_rd_data    (payload_rd_data),
         .payload_rd_addr    (payload_rd_addr),
-        .bit_index          (zp_bit_index),
+        .bit_index_sel      (zp_bit_index_sel),
         .bit_out            (zp_bit_out),
+        .state              (zp_state),
         .frame_done         (frame_done)
     );
 
@@ -60,8 +60,8 @@ module css_tx_frontend #(
             sel_d   <= 1'b0;
             valid_d <= 1'b0;
         end else begin
-            sel_d   <= zp_bit_index[0];
-            valid_d <= enable && (u_zero_padding.state != 2'b00);
+            sel_d   <= zp_bit_index_sel;
+            valid_d <= enable && (zp_state != 2'b00);
         end
     end
 
