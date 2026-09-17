@@ -97,7 +97,8 @@ module csk_generator #(
     output reg                           sign_imag_out,
     output wire                          sample_valid,    // high while a real chirp sample is being addressed
     output reg                           next_symbol_req, // pulses to request the next DQPSK symbol
-    output reg                           done             // packet modulation complete (1-cycle pulse)
+    output reg                           done,             // packet modulation complete (1-cycle pulse)
+    output wire gap_active   //Raghad fix 3
 );
 
     // ---------------------------------------------------------------
@@ -139,7 +140,7 @@ module csk_generator #(
     
     assign sample_valid = (state == S_STREAM);
 
-
+    assign gap_active = (state == S_GAP);   // Raghad fix 3
     // ---------------------------------------------------------------
     // Internal counters / registers
     // ---------------------------------------------------------------

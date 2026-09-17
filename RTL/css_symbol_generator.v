@@ -106,6 +106,7 @@ module css_symbol_generator #(
     wire       sign_real_out;
     wire       sign_imag_out;
     wire       sample_valid;
+    wire       gap_active;  //Raghad fix 3
 
     csk_generator #(
         .NUM_SYMBOLS_WIDTH (NUM_SYMBOLS_WIDTH)
@@ -124,7 +125,8 @@ module css_symbol_generator #(
         .sign_imag_out   (sign_imag_out),
         .sample_valid    (sample_valid),
         .next_symbol_req (next_symbol_req),
-        .done            (done)
+        .done            (done),
+        .gap_active      (gap_active) //Raghad fix 3
     );
 
     // ---------------------------------------------------------------
@@ -151,28 +153,39 @@ module css_symbol_generator #(
     // rom_imag one cycle later, by construction.
     // ---------------------------------------------------------------
     reg sample_valid_d1;
+    reg gap_active_d1;  //Raghad fix 3
     always @(posedge clk) begin
-        if (reset)
+        if (reset) begin
             sample_valid_d1 <= 1'b0;
-        else
+            gap_active_d1   <= 1'b0; //Raghad fix 3
+        end
+        else begin
             sample_valid_d1 <= sample_valid;
+            gap_active_d1   <= gap_active; //Raghad fix 3
+        end
     end
 
     // ---------------------------------------------------------------
     // complex_multiplier: combines the (now aligned) ROM sample with
     // the DQPSK sign bits, adding one more cycle of registered latency.
     // ---------------------------------------------------------------
+
+    wire signed [ROM_WIDTH-1:0] gap_masked_real = gap_active_d1 ? {ROM_WIDTH{1'b0}} : rom_real; //Raghad fix 3
+    wire signed [ROM_WIDTH-1:0] gap_masked_imag = gap_active_d1 ? {ROM_WIDTH{1'b0}} : rom_imag; //Raghad fix 3
     complex_multiplier #(
         .ROM_WIDTH (ROM_WIDTH),
         .OUT_WIDTH (OUT_WIDTH)
     ) u_complex_multiplier (
         .clk       (clk),
         .reset     (reset),
-        .rom_real  (rom_real),
-        .rom_imag  (rom_imag),
+        //.rom_real  (rom_real),
+        //.rom_imag  (rom_imag),
+        .rom_real  (gap_masked_real), //Raghad fix 3
+        .rom_imag  (gap_masked_imag), //Raghad fix 3
         .sign_real (sign_real_out),
         .sign_imag (sign_imag_out),
-        .valid_in  (sample_valid_d1),
+        //.valid_in  (sample_valid_d1),
+        .valid_in  (sample_valid_d1 | gap_active_d1),  ////Raghad fix 3
         .tx_real   (tx_real),
         .tx_imag   (tx_imag),
         .valid_out (tx_valid)

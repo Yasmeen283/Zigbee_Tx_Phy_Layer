@@ -152,12 +152,30 @@ module controller #(
     // padding computation so num_symbols is available immediately at
     // start, without waiting for the frontend to run.
     // ------------------------------------------------------------------
-    wire [15:0] codeword_pairs  = padded_total_bits / (2*N_IN);
+
+    //Raghad trial 1 fix
+    /*wire [15:0] codeword_pairs  = padded_total_bits / (2*N_IN);
+    wire [15:0] payload_chips   = codeword_pairs * M;
+    wire [15:0] total_symbols   = PREAMBLE_TOTAL_BITS + payload_chips;
+
+    assign num_symbols = total_symbols[NUM_SYMBOLS_WIDTH-1:0];*/
+
+    // Computed directly from the RAW payload_length input (not
+    // payload_length_reg / padded_total_bits from the frontend), so
+    // num_symbols is valid on the SAME cycle as start_tx/dp_start.
+    // Mirrors zero_padding.v's own padding arithmetic exactly.
+    localparam integer PHR_BITS = 12;
+
+    wire [15:0] total_bits_now        = PHR_BITS + ({9'd0, payload_length} << 3);
+    wire [15:0] remainder_now         = total_bits_now % GROUP_SIZE;
+    wire [15:0] pad_bits_now          = GROUP_SIZE - remainder_now;
+    wire [15:0] padded_total_bits_now = total_bits_now + pad_bits_now;
+
+    wire [15:0] codeword_pairs  = padded_total_bits_now / (2*N_IN);
     wire [15:0] payload_chips   = codeword_pairs * M;
     wire [15:0] total_symbols   = PREAMBLE_TOTAL_BITS + payload_chips;
 
     assign num_symbols = total_symbols[NUM_SYMBOLS_WIDTH-1:0];
-
     // ------------------------------------------------------------------
     // Start distribution (Assumption 4)
     // ------------------------------------------------------------------

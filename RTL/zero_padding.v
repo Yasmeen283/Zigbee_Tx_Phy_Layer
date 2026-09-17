@@ -44,8 +44,12 @@ module zero_padding #(
     wire [15:0] remainder;
     // assign remainder = total_bits - (GROUP_SIZE * (total_bits / GROUP_SIZE));
     assign remainder = total_bits % GROUP_SIZE ; //?synthesizable
+//************************************************************************************
+    //Raghad trial 2 fix
+    //assign pad_bits          = (remainder == 0) ? 5'd0 : (GROUP_SIZE - remainder);
+    assign pad_bits = GROUP_SIZE - remainder;
 
-    assign pad_bits          = GROUP_SIZE - remainder;
+//********************************************************************
     assign padded_total_bits = total_bits + pad_bits;
 
     // ------------------------------------------------------------------

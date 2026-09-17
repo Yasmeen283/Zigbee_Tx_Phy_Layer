@@ -39,17 +39,17 @@
 `timescale 1ns/1ps
 
 module css_tx_top #(
-    parameter         DATA_RATE           = 1'b0,
-    parameter integer N_IN                = 3,
-    parameter integer M                   = 4,
-    parameter integer GROUP_SIZE          = 6,
-    parameter integer PREAMBLE_TOTAL_BITS = 48,
-    parameter [15:0]  SFD                 = 16'h749C,
+    parameter         DATA_RATE           = 0, //0 --> 1M | 1--> 250 kbps
+    parameter integer N_IN                = 3, //3 --> 1M | 6 --> 250 kbps
+    parameter integer M                   = 4, //4 --> 1M | 32 --> 250 kbps
+    parameter integer GROUP_SIZE          = 6, //6 --> 1M | 24 --> 250 kbps
+    parameter integer PREAMBLE_TOTAL_BITS = 48, //48 --> 1M | 96 --> 250 kbps
+    parameter [15:0]  SFD                 = 16'h749C, //16'h749C --> 1M | 16'h7A23 --> 250 kbps
     parameter integer DATA_WIDTH          = 8,
     parameter integer ADDR_WIDTH          = 7,
     parameter integer NUM_SYMBOLS_WIDTH   = 12,
     parameter integer ROM_WIDTH           = 5,
-    parameter integer OUT_WIDTH           = 6 //!according to the spec this should be 8
+    parameter integer OUT_WIDTH           = 6
 )(
     input  wire                        clk,
     input  wire                        reset,
@@ -61,8 +61,8 @@ module css_tx_top #(
 
     // ---- packet control --------------------------------------------------
     input  wire                        start_tx,               // 1-cycle pulse
-    input  wire [6:0]                  payload_length,        // PSDU length in bytes
-    input  wire [1:0]                  chirp_index,          //! this sould not be here CSK sequence select (m=1-4 as 0-3)
+    input  wire [6:0]                  payload_length,  // PSDU length in bytes
+    input  wire [1:0]                  chirp_index,         // CSK sequence select (m=1-4 as 0-3)
     output wire                        tx_done,
 
     // ---- transmitted baseband output --------------------------------------
