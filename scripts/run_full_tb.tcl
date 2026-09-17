@@ -13,7 +13,8 @@ echo "========================================================="
 vlog +define+DUT_RATE=0 -f ../scripts/source_file.txt 
 vsim -voptargs=+acc work.tb
 
-add wave *
+# add wave *
+do ../scripts/wave.do
 
 run -all
 
