@@ -11,7 +11,7 @@
 //
 // The testbench:
 //   1) loads RAW PSDU bytes into the DUT payload RAM
-//   2) sets payload_length_reg and chirp_index
+//   2) sets payload_length and chirp_index
 //   3) pulses start
 //   4) captures ONLY tx_valid samples
 //   5) stops after tx_done
@@ -62,7 +62,7 @@ module tb;
   logic [ADDR_WIDTH_CFG-1:0]    payload_waddr;
   logic [DATA_WIDTH_CFG-1:0]    payload_wdata;
   logic                         start;
-  logic [6:0]                   payload_length_reg;
+  logic [6:0]                   payload_length;
   logic [1:0]                   chirp_index;
   //wire                          busy;
   wire                          tx_done;
@@ -89,10 +89,9 @@ module tb;
       .payload_we         (payload_we),
       .payload_waddr      (payload_waddr),
       .payload_wdata      (payload_wdata),
-      .start_tx              (start),
-      .payload_length (payload_length_reg),
+      .start_tx           (start),
+      .payload_length     (payload_length),
       .chirp_index        (chirp_index),
-      //.busy               (busy),
       .tx_done            (tx_done),
       .tx_real            (tx_real),
       .tx_imag            (tx_imag),
@@ -133,7 +132,7 @@ module tb;
       payload_waddr    = '0;
       payload_wdata    = '0;
       start            = 1'b0;
-      payload_length_reg = '0;
+      payload_length   = '0;
       chirp_index      = CHIRP_INDEX_CFG;
       repeat (5) @(posedge clk);
       reset = 1'b0;
@@ -153,7 +152,7 @@ module tb;
         payload_we    = 1'b1;
         payload_waddr = i;
         payload_wdata = payload_mem[i];
-        @(posedge clk);
+        @(negedge clk);
         #1;
       end
       @(negedge clk);
@@ -166,19 +165,17 @@ module tb;
   // --------------------------------------------------------------------------
   // Open per-case capture files.
   // --------------------------------------------------------------------------
+
   task automatic open_capture_files(input int length_bytes);
-    string fname_real;
-    string fname_imag;
-    string fname_log;
-    string fname_real_hex, fname_imag_hex;
+    string len_str;
+    string fname_real, fname_imag, fname_log, fname_real_hex, fname_imag_hex;
     begin
-      fname_real = $sformatf("../Verifications/rtl_outputs/rtl_%s_len%03d_real.txt", RATE_TAG, length_bytes);
-      fname_imag = $sformatf("../Verifications/rtl_outputs/rtl_%s_len%03d_imag.txt", RATE_TAG, length_bytes);
-
-      fname_real_hex = $sformatf("../Verifications/rtl_outputs/rtl_%s_len%03d_real.hex", RATE_TAG, length_bytes);
-      fname_imag_hex = $sformatf("../Verifications/rtl_outputs/rtl_%s_len%03d_imag.hex", RATE_TAG, length_bytes);
-
-      fname_log  = $sformatf("../Verifications/rtl_outputs/rtl_%s_len%03d_log.txt",  RATE_TAG, length_bytes);
+      len_str = format_len3(length_bytes);
+      fname_real     = $sformatf("../Verifications/rtl_outputs/rtl_%s_len%s_real.txt", RATE_TAG, len_str);
+      fname_imag     = $sformatf("../Verifications/rtl_outputs/rtl_%s_len%s_imag.txt", RATE_TAG, len_str);
+      fname_real_hex = $sformatf("../Verifications/rtl_outputs/rtl_%s_len%s_real.hex", RATE_TAG, len_str);
+      fname_imag_hex = $sformatf("../Verifications/rtl_outputs/rtl_%s_len%s_imag.hex", RATE_TAG, len_str);
+      fname_log      = $sformatf("../Verifications/rtl_outputs/rtl_%s_len%s_log.txt",  RATE_TAG, len_str);
 
       f_real = $fopen(fname_real, "w");
       f_imag = $fopen(fname_imag, "w");
@@ -189,10 +186,10 @@ module tb;
       if (!f_real || !f_imag || !f_log)
         $fatal(1, "Could not open RTL output files for payload length %0d", length_bytes);
 
-      $fdisplay(f_log, "rate=%s", RATE_TAG);
-      $fdisplay(f_log, "payload_length=%0d", length_bytes);
-      $fdisplay(f_log, "chirp_index=%0d", CHIRP_INDEX_CFG);
-      $fdisplay(f_log, "output_width=%0d", OUT_WIDTH_CFG);
+      $fdisplay(f_log, "rate=%s ", RATE_TAG);
+      $fdisplay(f_log, "payload_length=%0d ", length_bytes);
+      $fdisplay(f_log, "chirp_index=%0d ", CHIRP_INDEX_CFG);
+      $fdisplay(f_log, "output_width=%0d ", OUT_WIDTH_CFG);
       $fdisplay(f_log, "sample_index,tx_real_signed,tx_imag_signed,tx_valid,tx_done,fifo_overflow");
     end
   endtask
@@ -206,6 +203,15 @@ module tb;
       if (f_imag_hex) $fclose(f_imag_hex);
     end
   endtask
+
+  function automatic string format_len3(input int len);
+    if (len < 10)
+      return $sformatf("00%0d", len);
+    else if (len < 100)
+      return $sformatf("0%0d", len);
+    else
+      return $sformatf("%0d", len);
+  endfunction
 
   // --------------------------------------------------------------------------
   // One complete packet test.
@@ -223,20 +229,19 @@ module tb;
       apply_reset();
       write_payload(length_bytes);
 
-      payload_length_reg = length_bytes[6:0];
+      payload_length = length_bytes[6:0];
       chirp_index = CHIRP_INDEX_CFG;
 
       // One-cycle start pulse.
       @(negedge clk);
       start = 1'b1;
-      @(posedge clk);
-      #1;
+      @(negedge clk);
       start = 1'b0;
 
       // Capture only valid Tx samples.
       // #1 allows registered DUT outputs to settle after the clock edge.
       while (!done_seen) begin
-        @(posedge clk);
+        @(negedge clk);
         #1;
         cycles_waited++;
 
@@ -305,7 +310,7 @@ module tb;
     payload_waddr     = '0;
     payload_wdata     = '0;
     start             = 1'b0;
-    payload_length_reg = '0;
+    payload_length    = '0;
     chirp_index       = CHIRP_INDEX_CFG;
 
     #1;

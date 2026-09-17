@@ -49,7 +49,7 @@ module css_tx_top #(
     parameter integer ADDR_WIDTH          = 7,
     parameter integer NUM_SYMBOLS_WIDTH   = 12,
     parameter integer ROM_WIDTH           = 5,
-    parameter integer OUT_WIDTH           = 6
+    parameter integer OUT_WIDTH           = 6 //!according to the spec this should be 8
 )(
     input  wire                        clk,
     input  wire                        reset,
@@ -61,8 +61,8 @@ module css_tx_top #(
 
     // ---- packet control --------------------------------------------------
     input  wire                        start_tx,               // 1-cycle pulse
-    input  wire [6:0]                  payload_length,  // PSDU length in bytes
-    input  wire [1:0]                  chirp_index,         // CSK sequence select (m=1-4 as 0-3)
+    input  wire [6:0]                  payload_length,        // PSDU length in bytes
+    input  wire [1:0]                  chirp_index,          //! this sould not be here CSK sequence select (m=1-4 as 0-3)
     output wire                        tx_done,
 
     // ---- transmitted baseband output --------------------------------------
