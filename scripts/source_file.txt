@@ -33,6 +33,7 @@
 ../TB/tb_qpsk_mapper.v
 ../TB/tb_tx_datapath_top.sv
 ../TB/tb_zero_padding.v
+../Verifications/tb.sv
 
 
 

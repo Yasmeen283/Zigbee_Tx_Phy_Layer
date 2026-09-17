@@ -1,0 +1,15 @@
+CSS PHY Transmitter - MSE Report
+=================================
+
+--- Chirp ROM quantization ---
+TxDACbitNumber (R) = 5 bits
+MSE                = 0.003850
+Verdict (< 0.005)  = PASSES
+
+--- Full transmitter chain, 1 Mb/s ---
+Payload length = 50 bytes
+System MSE (floating vs fixed) = 0.003850  (PASSES 0.005 threshold)
+
+--- Full transmitter chain, 250 kb/s ---
+Payload length = 50 bytes
+System MSE (floating vs fixed) = 0.003850  (PASSES 0.005 threshold)
