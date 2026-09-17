@@ -11,7 +11,7 @@
 //
 // The testbench:
 //   1) loads RAW PSDU bytes into the DUT payload RAM
-//   2) sets payload_length and chirp_index
+//   2) sets payload_length_reg and chirp_index
 //   3) pulses start
 //   4) captures ONLY tx_valid samples
 //   5) stops after tx_done
@@ -31,6 +31,7 @@ module tb;
   localparam int MAX_PAYLOAD_BYTES = 127;
   localparam int NUM_TESTS         = 4;
   localparam longint TIMEOUT_CYCLES = 2_000_000;
+
 
   // Match the final top-level parameterisation.
   localparam int N_IN_CFG = RATE_250K ? 6 : 3;
@@ -62,7 +63,7 @@ module tb;
   logic [ADDR_WIDTH_CFG-1:0]    payload_waddr;
   logic [DATA_WIDTH_CFG-1:0]    payload_wdata;
   logic                         start;
-  logic [6:0]                   payload_length;
+  logic [6:0]                   payload_length_reg;
   logic [1:0]                   chirp_index;
   //wire                          busy;
   wire                          tx_done;
@@ -70,6 +71,29 @@ module tb;
   wire signed [OUT_WIDTH_CFG-1:0] tx_imag;
   wire                          tx_valid;
   wire                          fifo_overflow;
+
+
+  // ---------------- golden reference ----------------
+  localparam string GOLD_DIR              = "test_vectors";
+  localparam bit    STOP_ON_FIRST_MISMATCH = 1'b0;   // set 1 to break into the waveform
+
+  // 1 Mbps, chirp_index=0 (m=1): Tgap = 10 / 70, 4*Tsub = 152
+  localparam int SEQ_SAMPLES = 152;
+  localparam int GAP_EVEN    = 10;
+  localparam int GAP_ODD     = 70;
+
+  int  gold_real [];
+  int  gold_imag [];
+  int  gold_len;
+
+  // waveform-visible debug signals - add these to the wave window
+  int  sample_index;
+  int  exp_real_dbg, exp_imag_dbg;
+  int  got_real_dbg, got_imag_dbg;
+  bit  mismatch_pulse;
+  int  mismatch_count;
+  int  first_mismatch_idx;
+  time first_mismatch_time;
 
   css_tx_top #(
       .DATA_RATE           (RATE_250K),
@@ -89,9 +113,10 @@ module tb;
       .payload_we         (payload_we),
       .payload_waddr      (payload_waddr),
       .payload_wdata      (payload_wdata),
-      .start_tx           (start),
-      .payload_length     (payload_length),
+      .start_tx              (start),
+      .payload_length (payload_length_reg),
       .chirp_index        (chirp_index),
+      //.busy               (busy),
       .tx_done            (tx_done),
       .tx_real            (tx_real),
       .tx_imag            (tx_imag),
@@ -115,6 +140,17 @@ module tb;
   bit overflow_seen;
   integer f_real_hex, f_imag_hex;
 
+  // Helper: Enforce 3-digit zero padding without space artifact issues
+  function automatic string format_len3(input int len);
+    if (len < 10)
+      return $sformatf("00%0d", len);
+    else if (len < 100)
+      return $sformatf("0%0d", len);
+    else
+      return $sformatf("%0d", len);
+  endfunction
+
+  
   // ----------------------------- Payload input ------------------------------
   initial begin
     // Run the simulator from the project root so this relative path resolves.
@@ -132,7 +168,7 @@ module tb;
       payload_waddr    = '0;
       payload_wdata    = '0;
       start            = 1'b0;
-      payload_length   = '0;
+      payload_length_reg = '0;
       chirp_index      = CHIRP_INDEX_CFG;
       repeat (5) @(posedge clk);
       reset = 1'b0;
@@ -152,7 +188,7 @@ module tb;
         payload_we    = 1'b1;
         payload_waddr = i;
         payload_wdata = payload_mem[i];
-        @(negedge clk);
+        @(posedge clk);
         #1;
       end
       @(negedge clk);
@@ -162,17 +198,15 @@ module tb;
     end
   endtask
 
-  // --------------------------------------------------------------------------
   // Open per-case capture files.
-  // --------------------------------------------------------------------------
-
   task automatic open_capture_files(input int length_bytes);
     string len_str;
     string fname_real, fname_imag, fname_log, fname_real_hex, fname_imag_hex;
     begin
       len_str = format_len3(length_bytes);
-      fname_real     = $sformatf("../Verifications/rtl_outputs/rtl_%s_len%s_real.txt", RATE_TAG, len_str);
+      fname_real = $sformatf("../Verifications/rtl_outputs/rtl_%s_len%s_real.txt", RATE_TAG, len_str);
       fname_imag     = $sformatf("../Verifications/rtl_outputs/rtl_%s_len%s_imag.txt", RATE_TAG, len_str);
+
       fname_real_hex = $sformatf("../Verifications/rtl_outputs/rtl_%s_len%s_real.hex", RATE_TAG, len_str);
       fname_imag_hex = $sformatf("../Verifications/rtl_outputs/rtl_%s_len%s_imag.hex", RATE_TAG, len_str);
       fname_log      = $sformatf("../Verifications/rtl_outputs/rtl_%s_len%s_log.txt",  RATE_TAG, len_str);
@@ -204,18 +238,7 @@ module tb;
     end
   endtask
 
-  function automatic string format_len3(input int len);
-    if (len < 10)
-      return $sformatf("00%0d", len);
-    else if (len < 100)
-      return $sformatf("0%0d", len);
-    else
-      return $sformatf("%0d", len);
-  endfunction
-
-  // --------------------------------------------------------------------------
   // One complete packet test.
-  // --------------------------------------------------------------------------
   task automatic run_one_test(input int length_bytes);
     bit done_seen;
     begin
@@ -224,24 +247,31 @@ module tb;
       timed_out        = 0;
       overflow_seen    = 0;
       done_seen        = 0;
+      mismatch_count      = 0;
+      first_mismatch_idx  = -1;
+      first_mismatch_time = 0;
+      mismatch_pulse      = 1'b0;
+      sample_index        = 0;
+      load_golden(length_bytes);
 
       open_capture_files(length_bytes);
       apply_reset();
       write_payload(length_bytes);
 
-      payload_length = length_bytes[6:0];
+      payload_length_reg = length_bytes[6:0];
       chirp_index = CHIRP_INDEX_CFG;
 
       // One-cycle start pulse.
       @(negedge clk);
       start = 1'b1;
-      @(negedge clk);
+      @(posedge clk);
+      #1;
       start = 1'b0;
 
       // Capture only valid Tx samples.
       // #1 allows registered DUT outputs to settle after the clock edge.
       while (!done_seen) begin
-        @(negedge clk);
+        @(posedge clk);
         #1;
         cycles_waited++;
 
@@ -250,16 +280,47 @@ module tb;
           $display("[FAIL] %s L=%0d : fifo_overflow asserted", RATE_TAG, length_bytes);
         end
 
+                mismatch_pulse = 1'b0;
+
         if (tx_valid) begin
-          $fdisplay(f_real, "%0d", $signed(tx_real));
-          $fdisplay(f_imag, "%0d", $signed(tx_imag));
-          // Two's complement hex format (6-bit masked)
+          sample_index = captured_samples;
+          got_real_dbg = $signed(tx_real);
+          got_imag_dbg = $signed(tx_imag);
+
+          $fdisplay(f_real, "%0d", got_real_dbg);
+          $fdisplay(f_imag, "%0d", got_imag_dbg);
           $fdisplay(f_real_hex, "%02h", tx_real[OUT_WIDTH_CFG-1:0]);
           $fdisplay(f_imag_hex, "%02h", tx_imag[OUT_WIDTH_CFG-1:0]);
+
+          if (captured_samples < gold_len) begin
+            exp_real_dbg = gold_real[captured_samples];
+            exp_imag_dbg = gold_imag[captured_samples];
+
+            if ((got_real_dbg !== exp_real_dbg) || (got_imag_dbg !== exp_imag_dbg)) begin
+              mismatch_pulse = 1'b1;
+              mismatch_count++;
+
+              if (first_mismatch_idx < 0) begin
+                first_mismatch_idx  = captured_samples;
+                first_mismatch_time = $time;
+                $display("[MISMATCH] %s L=%0d FIRST at sample %0d, t=%0t : rtl=(%0d,%0d) exp=(%0d,%0d)",
+                         RATE_TAG, length_bytes, captured_samples, $time,
+                         got_real_dbg, got_imag_dbg, exp_real_dbg, exp_imag_dbg);
+                locate_sample(captured_samples);
+                if (STOP_ON_FIRST_MISMATCH) $stop;
+              end
+
+              if (mismatch_count <= 20)
+                $fdisplay(f_log, "MISMATCH idx=%0d rtl=(%0d,%0d) exp=(%0d,%0d) negated=%0d",
+                          captured_samples, got_real_dbg, got_imag_dbg,
+                          exp_real_dbg, exp_imag_dbg,
+                          ((got_real_dbg == -exp_real_dbg) && (got_imag_dbg == -exp_imag_dbg)));
+            end
+          end
+
           $fdisplay(f_log, "%0d,%0d,%0d,%0d,%0d,%0d",
-                    captured_samples, $signed(tx_real), $signed(tx_imag),
+                    captured_samples, got_real_dbg, got_imag_dbg,
                     tx_valid, tx_done, fifo_overflow);
-          
           captured_samples++;
         end
 
@@ -278,6 +339,26 @@ module tb;
       $fdisplay(f_log, "done_after_cycles=%0d", cycles_waited);
       $fdisplay(f_log, "captured_samples=%0d", captured_samples);
       $fdisplay(f_log, "overflow_seen=%0d", overflow_seen);
+
+            if (gold_len > 0) begin
+        int tail_ok; tail_ok = 1;
+        for (int k = captured_samples; k < gold_len; k++)
+          if (gold_real[k] != 0 || gold_imag[k] != 0) tail_ok = 0;
+
+        if (gold_len != captured_samples)
+          $display("%s %s L=%0d : length %0d vs golden %0d (%0d trailing golden samples, all-zero=%0d)",
+                   tail_ok ? "[INFO]" : "[FAIL]", RATE_TAG, length_bytes,
+                   captured_samples, gold_len, gold_len-captured_samples, tail_ok);
+
+        if (mismatch_count == 0 && tail_ok)
+          $display("[PASS-EXACT] %s L=%0d : bit-exact over %0d samples", RATE_TAG, length_bytes, captured_samples);
+        else begin
+          $display("[FAIL-DATA]  %s L=%0d : %0d mismatches, first at sample %0d (t=%0t)",
+                   RATE_TAG, length_bytes, mismatch_count, first_mismatch_idx, first_mismatch_time);
+          total_fail++;
+        end
+        $fdisplay(f_log, "mismatches=%0d first_mismatch_idx=%0d", mismatch_count, first_mismatch_idx);
+      end
 
       if (timed_out) begin
         $display("[FAIL] %s L=%0d : TIMEOUT after %0d cycles", RATE_TAG, length_bytes, cycles_waited);
@@ -298,9 +379,62 @@ module tb;
     end
   endtask
 
-  // --------------------------------------------------------------------------
+  task automatic load_golden(input int length_bytes);
+    int fdr, fdi, vr, vi, n;
+    string fr, fi, len_str;
+    begin
+      len_str   = format_len3(length_bytes);
+      fr = $sformatf("../Verifications/%s/mat_%s_len%s_real.txt", GOLD_DIR, RATE_TAG, len_str);
+      fi = $sformatf("../Verifications/%s/mat_%s_len%s_imag.txt", GOLD_DIR, RATE_TAG, len_str);
+
+      gold_len  = 0;
+      gold_real = new[600000];
+      gold_imag = new[600000];
+
+      fdr = $fopen(fr, "r");
+      fdi = $fopen(fi, "r");
+      if (fdr == 0 || fdi == 0) begin
+        $display("[WARN] golden files missing (%s) - capture only, no checking", fr);
+        return;
+      end
+
+      n = 0;
+      while (($fscanf(fdr, "%d", vr) == 1) && ($fscanf(fdi, "%d", vi) == 1)) begin
+        gold_real[n] = vr;
+        gold_imag[n] = vi;
+        n++;
+      end
+      $fclose(fdr); $fclose(fdi);
+      gold_len = n;
+      $display("[INFO] loaded %0d golden samples for %s L=%0d", gold_len, RATE_TAG, length_bytes);
+    end
+  endtask
+
+  // Map a sample index to (chirp sequence, subchirp/gap, DQPSK symbol number)
+  task automatic locate_sample(input int idx);
+    int pos, seq, len, off, sub;
+    begin
+      pos = 0; seq = 0;
+      forever begin
+        len = SEQ_SAMPLES + ((seq % 2 == 0) ? GAP_EVEN : GAP_ODD);
+        if (idx < pos + len) break;
+        pos += len; seq++;
+      end
+      off = idx - pos;
+      sub = off / 38;
+      if (off >= SEQ_SAMPLES)
+        $display("        -> chirp sequence %0d, IN THE GAP (offset %0d)", seq, off - SEQ_SAMPLES);
+      else
+        $display("        -> chirp sequence %0d, subchirp k=%0d, DQPSK symbol %0d, sample %0d of 38",
+                 seq, sub, seq*4 + sub, off % 38);
+      if (seq*4 + sub < PREAMBLE_BITS_CFG)
+        $display("        -> this is still in PREAMBLE/SFD (symbols 0..%0d)", PREAMBLE_BITS_CFG-1);
+      else
+        $display("        -> this is in the PAYLOAD (first payload symbol = %0d)", PREAMBLE_BITS_CFG);
+    end
+  endtask
+
   // Main
-  // --------------------------------------------------------------------------
   initial begin
     total_pass = 0;
     total_fail = 0;
@@ -310,7 +444,7 @@ module tb;
     payload_waddr     = '0;
     payload_wdata     = '0;
     start             = 1'b0;
-    payload_length    = '0;
+    payload_length_reg = '0;
     chirp_index       = CHIRP_INDEX_CFG;
 
     #1;
