@@ -1,7 +1,3 @@
-//=============================================================================
-// Block 1 (Zero Padding / payload framer) of the CSS PHY transmitter.
-//=============================================================================
-
 module zero_padding #(
     parameter GROUP_SIZE = 6 ,     // 6 for 1 Mbps, 24 for 250 kbps
     parameter DATA_WIDTH = 8 ,
@@ -12,16 +8,16 @@ module zero_padding #(
     input  wire         load,              // pulse: reload bit_index to 0 for a new PPDU
     input  wire         enable,           // advance bit_index by 1 each cycle while high
 
-    // ---- length / padding arithmetic --------------------------------------
+
     input  wire [6:0]   payload_length_reg,          // PHR(12) + PSDU(8*payloadLength) bit count
     output wire [15:0]  padded_total_bits,         // total_bits + pad_bits (multiple of GROUP_SIZE)
 
-    // ---- read payload ----------------------------------------------------
+
 
     input  wire [DATA_WIDTH-1:0] payload_rd_data,    
     output reg  [ADDR_WIDTH-1:0] payload_rd_addr, 
 
-    // ---- serial bit gate ----------------------------------------------------
+
     output wire  bit_index_sel,          // 0-based position within the padded stream --
                                            // value of PHR/PSDU bit `bit_index` (only meaningful
                                           // when bit_index < total_bits; framer/RAM supplies it)
@@ -31,9 +27,7 @@ module zero_padding #(
     output wire         frame_done        // high when bit_index is on the last bit of the padded frame
 );
 
-    // ------------------------------------------------------------------
-    // Padding arithmetic -- combinational
-    // ------------------------------------------------------------------
+
     //PHR(12) + PSDU(8*payloadLength) bit count
     reg [15:0]  bit_index ;
     wire [4:0]  pad_bits;            // 0 .. GROUP_SIZE-1 zero bits appended //max no of 0's is 23 for the 250k mode
@@ -44,18 +38,16 @@ module zero_padding #(
     wire [15:0] remainder;
     // assign remainder = total_bits - (GROUP_SIZE * (total_bits / GROUP_SIZE));
     assign remainder = total_bits % GROUP_SIZE ; //?synthesizable
-//************************************************************************************
-    //Raghad trial 2 fix
-    //assign pad_bits          = (remainder == 0) ? 5'd0 : (GROUP_SIZE - remainder);
+
     assign pad_bits = GROUP_SIZE - remainder;
 
-//********************************************************************
+
     assign padded_total_bits = total_bits + pad_bits;
 
-    // ------------------------------------------------------------------
+    
     // bit_index sequencing: registered counter, walks
     // 0 .. padded_total_bits-1, one step per cycle while enabled.
-    // ------------------------------------------------------------------
+    
     
     reg payload_bit_in ;
     reg [2:0] word_idx ; 
@@ -140,10 +132,7 @@ module zero_padding #(
     end
 
     assign frame_done = (bit_index == (padded_total_bits - 16'd1)); //? -1 ?
-    //------------------------------------------------------------------
-    // Serial bit gate (combinational): substitute 0 once bit_index has
-    // walked past the real PHR/PSDU bits and into the padding region.
-    // ------------------------------------------------------------------
+
     reg  [15:0] bit_index_d ;
     always @(posedge clk) begin
         if (reset)

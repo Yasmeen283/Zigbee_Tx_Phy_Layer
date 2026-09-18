@@ -1,43 +1,4 @@
-//=============================================================================
-// dqpsk_encoder.v
-//
-// Step 7 of the PPDU processing chain / the "4 FF DELAY" + first "X" block
-// of Figure 3-3.
-//
-// Implements S(n) = X(n) * S(n-4), per the reference equation, where X(n)
-// is this cycle's QPSK rotation (from qpsk_mapper.v) and S(n-4) is the
-// DQPSK symbol from 4 symbols ago.
-//
-// *** Why this is a rotate, not a real complex multiplier ***
-// The initial condition is S(0)=S(1)=S(2)=S(3)=exp(j*pi/4) -- a UNIT
-// MAGNITUDE point at 45 degrees, i.e. real=imag (both "+1" in the sign
-// convention below, the 1/sqrt(2) scale factor is deliberately dropped
-// here exactly as the reference project's own MATLAB code does -- only
-// the phase matters for the chirp modulation stage, see complex_multiplier
-// .v). X(n) is always one of the 4 axis rotations {+1,+j,-1,-j} (see
-// qpsk_mapper.v). Rotating a 45/135/225/315-degree point by a multiple of
-// 90 degrees lands on another 45/135/225/315-degree point -- so S(n)
-// NEVER leaves the "both components +-1" representation, and the multiply
-// reduces to a swap-and-conditional-negate (see the table in the module
-// header comment below), exactly like complex_multiplier.v's own
-// simplification. No real multiplier hardware is used here either.
-//
-// Handshake: mirrors the same style already used between csk_generator and
-// its caller (single-cycle valid pulses). qpsk_valid indicates i_bit/q_bit
-// (by way of qpsk_mapper's qpsk_quadrant) are valid THIS cycle; one cycle
-// later, dqpsk_valid pulses with the new S(n) on dqpsk_sign_real/imag.
-//
-// Assumptions:
-//   - qpsk_valid is a single-cycle pulse; qpsk_quadrant must be valid the
-//     same cycle.
-//   - reset re-initializes all 4 delay slots to the S(0..3) reference
-//     value (sign_real=0, sign_imag=0, i.e. both "+1" in the 0=+1,1=-1
-//     convention), per the standard's stated initial condition.
-//   - There is no back-pressure: a new qpsk_valid pulse is assumed not to
-//     arrive before the previous one's dqpsk_valid has been consumed
-//     downstream (this module produces one output per input, one cycle
-//     later, unconditionally).
-//=============================================================================
+
 `timescale 1ns/1ps
 
 module dqpsk_encoder (
@@ -53,16 +14,16 @@ module dqpsk_encoder (
     output reg         dqpsk_sign_imag // S(n) imag sign: 0 = +1, 1 = -1
 );
 
-    // ------------------------------------------------------------------
+
     // 4-deep delay line of previously-produced (sign_real, sign_imag)
     // pairs -- slot 0 is the OLDEST (this is S(n-4)); slot 3 is the most
     // recently produced symbol.
-    // ------------------------------------------------------------------
+
     reg sr_q [0:3];
     reg si_q [0:3];
     integer k;
 
-    // ------------------------------------------------------------------
+
     // Rotate S(n-4) = (sr_q[0], si_q[0]) by qpsk_quadrant -- see header
     // comment for the derivation:
     //   quadrant 0 (x  1): (sr,  si )
@@ -70,7 +31,7 @@ module dqpsk_encoder (
     //   quadrant 2 (x -1): (-sr, -si)
     //   quadrant 3 (x -j): (si, -sr )
     // Sign bits use 0=+1,1=-1, so "negate" is just a bit flip (XOR 1).
-    // ------------------------------------------------------------------
+
     reg new_sr, new_si;
     always @(*) begin
         case (qpsk_quadrant)

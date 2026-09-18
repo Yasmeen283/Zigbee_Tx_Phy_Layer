@@ -1,9 +1,4 @@
 // ============================================================================
-// Module Name:   chirp_rom
-// Description:   CSS Symbols ROM storing 4 pre-computed chirp sequences (m = 1..4)
-//                using two separate ROM arrays (Real and Imaginary) sharing
-//                a single 10-bit address bus.
-//
 // Precision:     R = 5 bits (Signed 2's Complement: -16 to +15)
 // Word Size:     5 bits for rom_real, 5 bits for rom_imag
 //
@@ -14,25 +9,23 @@
 // ============================================================================
 
 module chirp_rom (
-    input  wire       clk,          // System Clock
-    input  wire [1:0] chirp_index,  // Selects Chirp Sequence (0..3)
-    input  wire [1:0] subchirp_sel, // Selects Sub-Chirp k (0..3)
-    input  wire [5:0] sample_addr,  // Sample counter within sub-chirp (0..37)
-    output reg  [4:0] rom_real,     // 5-bit signed real part output
-    output reg  [4:0] rom_imag      // 5-bit signed imaginary part output
+    input  wire       clk,         
+    input  wire [1:0] chirp_index,  
+    input  wire [1:0] subchirp_sel, 
+    input  wire [5:0] sample_addr,  
+    output reg  [4:0] rom_real,    
+    output reg  [4:0] rom_imag     
 );
 
-    // ------------------------------------------------------------------------
+
     // 10-Bit Address Concatenation
-    // ------------------------------------------------------------------------
+
     wire [9:0] addr;
     assign addr = {chirp_index, subchirp_sel, sample_addr};
 
-    // ------------------------------------------------------------------------
-    // Synchronous Registered ROM (synthesizes to decoded combinational logic
-    // feeding a register, or to a ROM macro if the target library/tool
-    // recognizes the case-statement pattern).
-    // ------------------------------------------------------------------------
+
+
+    // made in this way to be synthesizable 
     always @(posedge clk) begin
         case (addr)
         10'd   0: begin rom_real <= 5'b00000; rom_imag <= 5'b00000; end

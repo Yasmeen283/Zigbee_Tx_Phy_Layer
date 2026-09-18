@@ -1,41 +1,3 @@
-//=============================================================================
-// css_tx_top.v
-//
-// Project top level: complete IEEE 802.15.4 CSS PHY transmitter.
-//
-//   payload_ram
-//        |  payload_rd_data / payload_rd_addr
-//        v
-//   css_tx_frontend   (zero_padding -> demux_iq -> serial_to_parallel x2
-//                      -> symbol_mapper x2)
-//        |  i_codeword / q_codeword (+ valids)
-//        v
-//   controller        (codeword buffer, elastic frontend pacing,
-//                      chip FIFO, symbol-count arithmetic)
-//        |  codeword pair on demand            ^ chips in
-//        v                                      |
-//   interleaver_ppdu_top  (interleaver_stage x2 -> ppdu_former, which owns
-//                          preamble_sfd_rom + parallel_to_serial x2)
-//        |  i_bit / q_bit / chip_valid ---------'
-//        v
-//   tx_datapath_top   (qpsk_mapper -> dqpsk_encoder -> css_symbol_generator,
-//                      which contains chirp_rom + csk_generator +
-//                      complex_multiplier)
-//        |
-//        v
-//   tx_real / tx_imag / tx_valid
-//
-// The controller sits between the frontend and interleaver_ppdu_top in the
-// codeword path, and between interleaver_ppdu_top and tx_datapath_top in
-// the chip path. Both placements are deliberate: see controller.v's header
-// for the two rate mismatches this arrangement resolves.
-//
-// Default parameterisation is 1 Mbps. For 250 kbps, set DATA_RATE=1,
-// N_IN=6, M=32, GROUP_SIZE=24, PREAMBLE_TOTAL_BITS=96, SFD=16'h7A23, and
-// point MEMFILE_I/Q at the 250 kbps symbol-mapper tables -- but note the
-// 250 kbps limitation documented as Assumption 7 in controller.v before
-// doing so.
-//=============================================================================
 `timescale 1ns/1ps
 
 module css_tx_top #(
@@ -54,29 +16,23 @@ module css_tx_top #(
     input  wire                        clk,
     input  wire                        reset,
 
-    // ---- payload load interface (MAC writes the PSDU before start) ------
     input  wire                        payload_we,
     input  wire [ADDR_WIDTH-1:0]       payload_waddr,
     input  wire [DATA_WIDTH-1:0]       payload_wdata,
 
-    // ---- packet control --------------------------------------------------
     input  wire                        start_tx,               // 1-cycle pulse
     input  wire [6:0]                  payload_length,  // PSDU length in bytes
     input  wire [1:0]                  chirp_index,         // CSK sequence select (m=1-4 as 0-3)
     output wire                        tx_done,
 
-    // ---- transmitted baseband output --------------------------------------
     output wire signed [OUT_WIDTH-1:0] tx_real,
     output wire signed [OUT_WIDTH-1:0] tx_imag,
     output wire                        tx_valid,
 
-    // ---- status ------------------------------------------------------------
     output wire                        fifo_overflow
 );
 
-    // ------------------------------------------------------------------
-    // Payload RAM
-    // ------------------------------------------------------------------
+
     wire [ADDR_WIDTH-1:0] payload_rd_addr;
     wire [DATA_WIDTH-1:0] payload_rd_data;
     wire [6:0] payload_length_reg ;
@@ -93,9 +49,7 @@ module css_tx_top #(
         .dout  (payload_rd_data)
     );
 
-    // ------------------------------------------------------------------
-    // Frontend: padding, demux, serial-to-parallel, symbol mapping
-    // ------------------------------------------------------------------
+
     wire               fe_load, fe_enable, fe_frame_done;
     wire [M-1:0]       fe_i_codeword, fe_q_codeword;
     wire               fe_i_codeword_valid, fe_q_codeword_valid;
@@ -123,9 +77,6 @@ module css_tx_top #(
         .padded_total_bits  (padded_total_bits)
     );
 
-    // ------------------------------------------------------------------
-    // Controller
-    // ------------------------------------------------------------------
     wire                         pf_start, pf_last_codeword;
     wire [M-1:0]                 pf_i_codeword, pf_q_codeword;
     wire                         pf_i_codeword_valid, pf_q_codeword_valid;
@@ -177,9 +128,7 @@ module css_tx_top #(
         .fifo_overflow       (fifo_overflow)
     );
 
-    // ------------------------------------------------------------------
-    // Interleaver stages + PPDU former
-    // ------------------------------------------------------------------
+
     interleaver_ppdu_top #(
         .M                   (M),
         .DATA_RATE           (DATA_RATE),
@@ -200,9 +149,7 @@ module css_tx_top #(
         .chip_valid       (pf_chip_valid)
     );
 
-    // ------------------------------------------------------------------
-    // Modulation datapath
-    // ------------------------------------------------------------------
+
     tx_datapath_top #(
         .NUM_SYMBOLS_WIDTH (NUM_SYMBOLS_WIDTH),
         .ROM_WIDTH         (ROM_WIDTH),

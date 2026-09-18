@@ -1,12 +1,4 @@
-// ============================================================================
-// Block 0: Payload RAM (Single-Port Synchronous Read / Dual-Port Ready)
-// Standard: IEEE 802.15.4 CSS Physical Layer (2450 MHz)
-// 
-// Description:
-// Stores the frame payload (PSDU) bytes to be fetched by the Zero Padding /
-// Payload Framer block. Supports standard write operations for payload initialization
-// and synchronous read operations addressed by the framer (0 to 127 bytes).
-// ============================================================================
+
 
 module payload_ram #(
     parameter DATA_WIDTH = 8,

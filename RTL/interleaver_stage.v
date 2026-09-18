@@ -1,34 +1,7 @@
-//=============================================================================
-// interleaver_stage.v
-//
-// Reconciles the Bit Interleaver (interleaver.v, 250 kbps only) with the
-// dual data-rate requirement, using the SAME pattern already used for
-// symbol_mapper's N_IN/M_OUT/MEMFILE: an elaboration-time parameter picked
-// via `generate`, not a runtime mux.
-//
-// External interface is identical for both rates:
-//   codeword_in [M_OUT-1:0] / codeword_valid   <- from symbol_mapper
-//   data_out    [M_OUT-1:0] / data_valid       -> to Form PPDU / serializer
-//
-// DATA_RATE = 0 (1 Mbps, M_OUT = 4):
-//   The interleaver plays no part at this rate. Codewords are registered
-//   straight through (the 1-cycle delay just keeps the pipeline shape
-//   consistent with the 250k branch below; nothing downstream depends on
-//   cycle-exact latency matching between rates, since only one rate is
-//   ever elaborated into a given instance of the design).
-//
-// DATA_RATE = 1 (250 kbps, M_OUT = 32):
-//   The interleaver permutes 64 bits = 2 consecutive 32-bit codewords at
-//   once. This stage buffers codeword N, and when codeword N+1 arrives it
-//   concatenates {cw_N, cw_N+1} into the 64-bit interleaver input, then
-//   streams the two 32-bit permuted halves back out one per cycle -- so
-//   from the outside it still looks like "one M_OUT-bit codeword in ->
-//   one M_OUT-bit codeword out", exactly like the bypass branch.
-//=============================================================================
 `timescale 1ns/1ps
 
 module interleaver_stage #(
-    parameter integer M_OUT     = 4,     // must match the symbol_mapper instance feeding this: 4 (1Mbps) or 32 (250kbps)
+    parameter integer M_OUT     = 4,     // 4 (1Mbps) or 32 (250kbps)
     parameter         DATA_RATE = 1'b0   // 0 = 1Mbps (interleaver elaborated out entirely), 1 = 250kbps (interleaver active)
 )(
     input  wire               clk,

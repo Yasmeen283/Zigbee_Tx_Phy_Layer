@@ -30,9 +30,9 @@ module interleaver_ppdu_top #(
     wire [M-1:0] q_stage_out;
     wire         q_stage_valid;
 
-    // ---------------------------------------------------------------
+
     // I-Channel Interleaver Stage
-    // ---------------------------------------------------------------
+
     interleaver_stage #(
         .M_OUT    (M),
         .DATA_RATE(DATA_RATE)
@@ -45,9 +45,9 @@ module interleaver_ppdu_top #(
         .data_valid     (i_stage_valid)
     );
 
-    // ---------------------------------------------------------------
+
     // Q-Channel Interleaver Stage
-    // ---------------------------------------------------------------
+
     interleaver_stage #(
         .M_OUT    (M),
         .DATA_RATE(DATA_RATE)
@@ -60,9 +60,9 @@ module interleaver_ppdu_top #(
         .data_valid     (q_stage_valid)
     );
 
-    // ---------------------------------------------------------------
+
     // PPDU Former (Preamble ROM + Parallel-to-Serial Muxing)
-    // ---------------------------------------------------------------
+
     ppdu_former #(
         .M                  (M),
         .PREAMBLE_TOTAL_BITS(PREAMBLE_TOTAL_BITS)

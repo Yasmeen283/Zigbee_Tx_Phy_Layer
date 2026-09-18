@@ -1,22 +1,4 @@
-//=============================================================================
-// interleaver.v
-//
-// Block 4 (Bit Interleaver) -- 250 kbps ONLY. Not used at 1 Mbps at all;
-// see interleaver_stage.v for how the two rates are reconciled.
-//
-// Operates on 64 bits = two consecutive 32-bit codewords, viewed as 16
-// groups of 4 bits (G0..G15). Output group i = input group G[PERM[i]],
-// i.e. a pure re-ordering of 4-bit groups -- no bits are changed, only
-// their position.
-//
-// PERM = [0,13,2,15,4,9,6,11,8,5,10,7,12,1,14,3] (reference doc table).
-//
-// FIXES vs. the original draft:
-//   - data_in was declared [31:0] but must be [63:0] (16 groups x 4 bits =
-//     64 bits) to match the comment and the perm_of() indexing below.
-//   - data_valid was declared as an output but never driven. The block is
-//     purely combinational, so data_valid simply follows codeword_valid.
-//=============================================================================
+
 `timescale 1ns/1ps
 
 module interleaver (
