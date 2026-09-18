@@ -48,13 +48,19 @@ fprintf('====================================================\n');
 fprintf('RTL Sample Count    : %d\n', len_rtl);
 fprintf('MATLAB Sample Count : %d\n', len_mat);
 
-if len_rtl ~= len_mat
-    warning('Sample count mismatch! Truncating to shorter dataset for comparison.');
-    min_len = min(len_rtl, len_mat);
-    rtl_real = rtl_real(1:min_len);
-    rtl_imag = rtl_imag(1:min_len);
-    mat_real = mat_real(1:min_len);
-    mat_imag = mat_imag(1:min_len);
+if len_rtl < len_mat
+    tail_r = mat_real(len_rtl+1:end);
+    tail_i = mat_imag(len_rtl+1:end);
+    if all(tail_r == 0) && all(tail_i == 0)
+        fprintf('[INFO] %d trailing MATLAB samples are zero (preallocation pad) - OK\n', ...
+                len_mat - len_rtl);
+        rtl_real(end+1:len_mat) = 0;
+        rtl_imag(end+1:len_mat) = 0;
+    else
+        error('RTL is short by %d samples and the MATLAB tail is NOT zero.', len_mat-len_rtl);
+    end
+elseif len_rtl > len_mat
+    error('RTL produced MORE samples (%d) than MATLAB (%d).', len_rtl, len_mat);
 end
 
 % Error and MSE calculation
@@ -62,17 +68,15 @@ diff_real = rtl_real - mat_real;
 diff_imag = rtl_imag - mat_imag;
 err_cnt_real = sum(diff_real ~= 0);
 err_cnt_imag = sum(diff_imag ~= 0);
-mse_real = mean(diff_real.^2);
-mse_imag = mean(diff_imag.^2);
+%mse_real = mean(diff_real.^2);
+%mse_imag = mean(diff_imag.^2);
 
 fprintf('\n--- Comparison Results (%s, L = %d) ---\n', dataRateStr, payloadLen);
-fprintf('Real Channel  - Mismatches: %d / %d | MSE: %.6f\n', err_cnt_real, length(rtl_real), mse_real);
-fprintf('Imag Channel  - Mismatches: %d / %d | MSE: %.6f\n', err_cnt_imag, length(rtl_imag), mse_imag);
+fprintf('Real Channel  - Mismatches: %d / %d \n', err_cnt_real, length(rtl_real));
+fprintf('Imag Channel  - Mismatches: %d / %d \n', err_cnt_imag, length(rtl_imag));
 
 if (err_cnt_real == 0) && (err_cnt_imag == 0)
     fprintf('[VERDICT: PASS] RTL output is BIT-EXACT with MATLAB stage 13!\n');
-elseif (mse_real <= 0.005) && (mse_imag <= 0.005)
-    fprintf('[VERDICT: PASS] RTL output matches MATLAB stage 13 within acceptable MSE tolerance.\n');
 else
     fprintf('[VERDICT: FAIL] Output divergence detected between RTL and MATLAB.\n');
 end
