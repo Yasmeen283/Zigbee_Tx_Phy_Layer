@@ -31,7 +31,7 @@ module css_symbol_generator #(
             chirp_index_latched <= chirp_index;
     end
 
---
+
     wire [1:0] subchirp_sel;
     wire [5:0] sample_addr;
     wire       sign_real_out;
