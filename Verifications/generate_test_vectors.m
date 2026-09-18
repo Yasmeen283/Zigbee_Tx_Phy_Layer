@@ -1,7 +1,3 @@
-% =========================================================================
-% IEEE 802.15.4 CSS PHY - Test Vector Generator for RTL Verification
-% Saves payload inputs and golden MATLAB outputs to test_vectors/
-% =========================================================================
 clear; clc; close all;
 
 addpath('common'); addpath('transmitter');
