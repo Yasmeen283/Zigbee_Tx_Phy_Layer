@@ -1,23 +1,8 @@
 `timescale 1ns/1ps
 
-// =============================================================================
-// IEEE 802.15.4 CSS PHY Transmitter - Integration Testbench
-// =============================================================================
-// Final DUT interface matched to css_tx_top.v.
-//
 // DUT configuration:
 //   -DUT_RATE=0  -> 1 Mbps
 //   -DUT_RATE=1  -> 250 kbps
-//
-// The testbench:
-//   1) loads RAW PSDU bytes into the DUT payload RAM
-//   2) sets payload_length_reg and chirp_index
-//   3) pulses start
-//   4) captures ONLY tx_valid samples
-//   5) stops after tx_done
-//   6) fails if fifo_overflow ever becomes 1
-//   7) writes signed decimal Tx samples for MATLAB bit-exact comparison
-// =============================================================================
 
 module tb;
 
@@ -158,9 +143,6 @@ module tb;
     $readmemh("../Verifications/payloads.hex", payload_mem);
   end
 
-  // --------------------------------------------------------------------------
-  // Reset. Reset is synchronous in css_tx_top, so hold it across clock edges.
-  // --------------------------------------------------------------------------
   task automatic apply_reset;
     begin
       reset            = 1'b1;
@@ -176,9 +158,7 @@ module tb;
     end
   endtask
 
-  // --------------------------------------------------------------------------
   // Write RAW PSDU bytes into payload RAM.
-  // --------------------------------------------------------------------------
   task automatic write_payload(input int length_bytes);
     int i;
     begin
