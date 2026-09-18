@@ -130,7 +130,7 @@ module zero_padding #(
                         bit_index <= bit_index + 16'd1;
                         word_idx <= word_idx + 1'b1 ;
                         payload_bit_in <= payload_rd_data[word_idx];
-                        if(&word_idx) begin // end of byte 
+                        if(word_idx == 3'd6 ) begin // end of byte 
                             payload_rd_addr <= payload_rd_addr + 1'b1 ;
                         end
                     end

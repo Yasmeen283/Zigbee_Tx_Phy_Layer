@@ -275,6 +275,7 @@ module controller #(
         else if (cw_pop)             pf_req_pending <= 1'b0;
     end
 
+    integer idx ;
     always @(posedge clk) begin
         if (reset) begin
             cw_wptr <= 3'd0;  cw_rptr <= 3'd0;  cw_count <= 3'd0;
@@ -283,6 +284,11 @@ module controller #(
             pf_i_codeword_valid <= 1'b0;
             pf_q_codeword_valid <= 1'b0;
             pf_last_codeword    <= 1'b0;
+            for (idx = 0; idx < CW_DEPTH; idx = idx + 1) begin
+                cw_i[idx]    <= {M{1'b0}};
+                cw_q[idx]    <= {M{1'b0}};
+                cw_last[idx] <= 1'b0;
+            end
         end else if (start_tx) begin
             cw_wptr <= 3'd0;  cw_rptr <= 3'd0;  cw_count <= 3'd0;
             pf_i_codeword       <= {M{1'b0}};

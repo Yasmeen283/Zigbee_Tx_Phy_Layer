@@ -218,7 +218,7 @@ module tb;
       f_log  = $fopen(fname_log,  "w");
 
       if (!f_real || !f_imag || !f_log)
-        $fatal(1, "Could not open RTL output files for payload length %0d", length_bytes);
+        $error(1, "Could not open RTL output files for payload length %0d", length_bytes);
 
       $fdisplay(f_log, "rate=%s ", RATE_TAG);
       $fdisplay(f_log, "payload_length=%0d ", length_bytes);
@@ -286,6 +286,8 @@ module tb;
           sample_index = captured_samples;
           got_real_dbg = $signed(tx_real);
           got_imag_dbg = $signed(tx_imag);
+          // got_real_dbg = tx_real;
+          // got_imag_dbg = tx_imag;
 
           $fdisplay(f_real, "%0d", got_real_dbg);
           $fdisplay(f_imag, "%0d", got_imag_dbg);
@@ -461,7 +463,7 @@ module tb;
     $display("============================================================");
 
     if (total_fail != 0)
-      $fatal(1, "RTL basic testbench failed for rate %s", RATE_TAG);
+      $error(1, "RTL basic testbench failed for rate %s", RATE_TAG);
 
     $stop;
   end

@@ -36,10 +36,14 @@ module qpsk_mapper (
 
     always @(*) begin
         case ({i_bit, q_bit})
-            2'b00:   qpsk_quadrant = 2'd0; // +1
-            2'b10:   qpsk_quadrant = 2'd1; // +j
-            2'b11:   qpsk_quadrant = 2'd2; // -1
-            2'b01:   qpsk_quadrant = 2'd3; // -j
+            // 2'b00:   qpsk_quadrant = 2'd0; // +1
+            // 2'b10:   qpsk_quadrant = 2'd1; // +j
+            // 2'b11:   qpsk_quadrant = 2'd2; // -1
+            // 2'b01:   qpsk_quadrant = 2'd3; // -j
+            2'b00:   qpsk_quadrant = 2'd2; // was +1 (0), now -1
+            2'b10:   qpsk_quadrant = 2'd3; // was +j (1), now -j
+            2'b11:   qpsk_quadrant = 2'd0; // was -1 (2), now +1
+            2'b01:   qpsk_quadrant = 2'd1; // was -j (3), now +j
             default: qpsk_quadrant = 2'd0;
         endcase
     end

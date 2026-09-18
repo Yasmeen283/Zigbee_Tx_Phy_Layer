@@ -43,14 +43,14 @@ module symbol_mapper #(
         if (DATA_RATE == 1'b0) begin : gen_rom_1mbps
             always @(*) begin
                     case (group_in)
-                        3'd0: rom = 4'b1010;
-                        3'd1: rom = 4'b1011;
-                        3'd2: rom = 4'b1000;
-                        3'd3: rom = 4'b1001;
-                        3'd4: rom = 4'b1110;
-                        3'd5: rom = 4'b1111;
-                        3'd6: rom = 4'b1100;
-                        3'd7: rom = 4'b1101;
+                        3'd0: rom = 4'b1111;   // +1 +1 +1 +1
+                        3'd1: rom = 4'b0101;   // +1 -1 +1 -1
+                        3'd2: rom = 4'b0011;   // +1 +1 -1 -1
+                        3'd3: rom = 4'b1001;   // +1 -1 -1 +1
+                        3'd4: rom = 4'b0000;   // -1 -1 -1 -1
+                        3'd5: rom = 4'b1010;   // -1 +1 -1 +1
+                        3'd6: rom = 4'b1100;   // -1 -1 +1 +1
+                        3'd7: rom = 4'b0110;   // -1 +1 +1 -1
                         default: rom = 4'b0000;
                     endcase
             end
