@@ -1,12 +1,3 @@
-// =========================================================================
-// complex_multiplier.v
-//
-//       (a + bj)(c + dj) = (ac - bd) + (ad + bc)j
-//
-//   where a = dqpsk real sign (+1/-1), b = dqpsk imag sign (+1/-1),
-//         c = rom_real,                d = rom_imag.
-// =========================================================================
-
 module complex_multiplier #(
     parameter ROM_WIDTH = 5,   
     parameter OUT_WIDTH = 6    // ROM_WIDTH + 1 
