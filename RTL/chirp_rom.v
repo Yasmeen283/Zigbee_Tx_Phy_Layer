@@ -1,13 +1,3 @@
-// ============================================================================
-// Precision:     R = 5 bits (Signed 2's Complement: -16 to +15)
-// Word Size:     5 bits for rom_real, 5 bits for rom_imag
-//
-// Address Map:   10 bits total
-//                [9:8] = chirp_index  (0 to 3  <-> m = 1 to 4)
-//                [7:6] = subchirp_sel (0 to 3  <-> k = 0 to 3)
-//                [5:0] = sample_addr  (0 to 37 valid; 38 to 63 unused)
-// ============================================================================
-
 module chirp_rom (
     input  wire       clk,         
     input  wire [1:0] chirp_index,  
