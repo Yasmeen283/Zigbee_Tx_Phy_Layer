@@ -1,7 +1,3 @@
-% =========================================================================
-% IEEE 802.15.4 CSS PHY - Stage 1 Verification
-% Floating-Point vs. Fixed-Point Model Accuracy Check (Corrected Scaling)
-% =========================================================================
 clear; clc; close all;
 
 addpath('common');
