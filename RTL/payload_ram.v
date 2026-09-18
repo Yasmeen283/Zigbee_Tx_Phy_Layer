@@ -1,5 +1,3 @@
-
-
 module payload_ram #(
     parameter DATA_WIDTH = 8,
     parameter ADDR_WIDTH = 7   // 2^7 = 128 bytes maximum PSDU capacity
