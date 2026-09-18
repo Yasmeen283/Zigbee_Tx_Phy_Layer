@@ -1,6 +1,3 @@
-
-`timescale 1ns/1ps
-
 module demux_iq (
     input  wire bit_in,           
     input  wire sel,             //bit index [0]
